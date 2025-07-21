@@ -1,0 +1,5 @@
+FLASK_APP = start.py
+FLASK_DEBUG = 1 
+FLASK_ENV = development
+FLASK_RUN_PORT = 8008
+FLASK_RUN_HOST = 0.0.0.0

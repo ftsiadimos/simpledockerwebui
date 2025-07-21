@@ -1,0 +1,79 @@
+{% extends 'base.html' %}
+
+
+{% block content %}
+
+<div class="container">
+      <form action="/submitadmin" method="post">
+    <table id="data" class="table table-striped">
+    <thead>
+        <tr>
+            <th><input type="checkbox" onClick="toggle(this)" /></th>
+            <th>Name</th>
+            <th>Image</th>
+            <th>Status</th>
+            <th>Host Ports</th>
+            <th>Logs</th>
+             <th>Runs</th>
+        </tr>
+    </thead>
+    <tbody>
+            {% for i in doc %}
+                <tr>   
+                    <td><input type="checkbox" id="{{ i.id }}" name="interests" value="{{ i.id }}"></td>
+                    <td>{{ i.name }}</td> 
+                    {%  set image_name = i.attrs['Config']['Image'] %}
+                    <td>{{ image_name }}</td>
+                    <td>{{ i.status }}</td>
+                    {% set ports = i.ports %}
+                    <td>{% for internal_port, host_ports in ports.items()%}
+                        {% if host_ports %}
+                        {% for host_port_info in host_ports %}
+                         {% if loop.index == 1 %}
+                            {% set host_ip = host_port_info.get('HostIp', '0.0.0.0') %}
+                            {% set host_port = host_port_info.get('HostPort') %}
+                            {{ internal_port}}-><a href="http://{{ serverurl.name }}:{{ host_port }}">{{ host_port }}</a>
+                             {% endif %}
+                        {% endfor %}
+                        {% endif %}
+               
+                    {% endfor %}
+                    </td>
+                    <td><button type="submit" formaction="/logs" name="logs" value="{{i.id}}" class="btn btn-primary">Logs</button></td>
+                   <td><button type="submit" formaction="/comma" name="comma" value="{{i.id}}" class="btn btn-primary">Run</button></td>
+                </tr>
+            {% endfor %}
+
+            <div class="btn-group">
+                <input type="submit" name="submit_button" class="btn btn-primary" value="Start">
+                <input type="submit" name="submit_button" class="btn btn-primary" value="Stop">
+                 <input type="submit" name="submit_button" class="btn btn-primary" value="Restart">
+                <input type="submit" name="submit_button" class="btn btn-primary" onclick="return confirm('Are you sure you want to delete this item?');"  value="Delete">
+            </div>
+    </tbody>
+</table>
+  </form>
+</div>
+ 
+    <script>
+      $(document).ready(function() {
+        $('#data').DataTable({
+          "order": [[ 1, 'asc' ]],
+          "columnDefs": [
+            { "targets": [0,5,6], "orderable": false },
+            { "targets": [0,5,6], "searchable": false }
+          ]
+        });
+      });
+    </script>
+
+<script language="JavaScript">
+function toggle(source) {
+  checkboxes = document.getElementsByName('interests');
+  for(var checkbox in checkboxes)
+    checkboxes[checkbox].checked = source.checked;
+}
+</script>
+
+{% endblock %}
+

@@ -1,0 +1,10 @@
+{% extends 'base.html' %}
+
+{% block content %}
+
+
+<div style="border: 45px solid; padding: 10px; width: 100%; overflow-y: auto; padding: 10px; background-color: #1a1515; color: rgb(255, 255, 255);">
+
+   {{ logs | replace('\\n', '<br>') | safe  }}
+</div>
+{% endblock %}

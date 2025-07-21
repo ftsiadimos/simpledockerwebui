@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    {% if title %}
+    <title>{{ title }} - Docker</title>
+    {% else %}
+    <title>Simple Docker WebUI</title>
+    {% endif %}
+  
+
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='bootstrap.min1.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='dataTables.bootstrap5.css') }}">
+   <script type = "text/javascript" src = "{{ url_for('static', filename = 'jquery-3.6.0.min.js') }}" ></script>
+   <script type = "text/javascript" src = "{{ url_for('static', filename = 'jquery.dataTables.js') }}" ></script>
+   <script type = "text/javascript" src = "{{ url_for('static', filename = 'dataTables.bootstrap5.js') }}" ></script>
+   <script type = "text/javascript" src = "{{ url_for('static', filename = 'bootstrap.min.js') }}" ></script>
+
+
+
+ </head>
+  
+ <body>
+    <nav class="navbar navbar-expand-lg navbar-light bg-light">
+      <div class="container-fluid">
+        <a class="navbar-brand" href="{{ url_for('index') }}">Home</a>
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+        <div class="collapse navbar-collapse" id="navbarSupportedContent">
+          <ul  class="navbar-nav ms-auto">
+            <li class="nav-item"> <a class="nav-link" aria-current="page" href="{{ url_for('addcon') }}">Config</a></li> 
+             <li class="nav-item"> <a class="nav-link" aria-current="page" href="{{ url_for('about') }}">About</a></li> 
+          </ul>
+        </div>
+      </div>
+    </nav>
+    <hr>
+    <div class="container mt-3">
+      {% block content %}{% endblock %}
+    </div>
+
+  </body>
+</html>
+
+

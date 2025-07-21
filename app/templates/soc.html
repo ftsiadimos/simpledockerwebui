@@ -1,0 +1,32 @@
+{% extends 'base.html' %}
+
+{% block content %}
+
+    <h1>In progress...</h1>
+    <div style="border: 45px solid; padding: 10px; width: 100%; overflow-y: auto; padding: 10px; background-color: #000000; color: rgb(255, 255, 255);">
+
+    <div id="log"></div>
+    <br>
+    <form id="form">
+      <label for="text">Input: </label>
+      <input type="text" id="text" autofocus>
+    </form>
+    <script>
+      const log = (text, color) => {
+        document.getElementById('log').innerHTML += `<span style="color: ${color}">${text}</span><br>`;
+      };
+
+      const socket = new WebSocket('ws://' + location.host + '/echo?id={{id}}');
+      socket.addEventListener('message', ev => {
+        log('<<< ' + ev.data, 'white');
+      });
+      document.getElementById('form').onsubmit = ev => {
+        ev.preventDefault();
+        const textField = document.getElementById('text');
+        log('>>> ' + textField.value, 'red');
+        socket.send(textField.value);
+        textField.value = '';
+      };
+    </script>
+</div>
+{% endblock %}

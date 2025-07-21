@@ -1,0 +1,8 @@
+services:
+  web:
+    build: ./
+    image: lightdockerwebui
+    restart: unless-stopped
+    ports:
+      - 8008:8008
+    command: /usr/local/bin/gunicorn -b :8008 start:app

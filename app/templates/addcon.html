@@ -1,0 +1,23 @@
+{% extends 'base.html' %}
+
+{% block content %}
+
+ <div class="container">
+    <form action="" method="post">
+          {{ form.hidden_tag() }}
+        <p>
+            {{ form.name.label }}<br>
+            {{ form.name(size=32, value=user.name)}}<br>
+        </p>
+        <p>
+            {{ form.port.label }}<br>
+            {{ form.port(size=8, value=user.port)}}<br>
+        </p>
+        <p>{{ form.submit() }}</p>
+    </form>
+
+  
+</div>
+
+
+{% endblock %}
