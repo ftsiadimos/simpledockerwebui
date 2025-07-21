@@ -15,7 +15,7 @@ $ docker run -d -p 8008:8008 ftsiadimos/lightdockerwebui:version1.0
 4. Open URL in a web browser.
 
 
-<img src="mis/image1.png" width="800" />
+<img src="mis/image1.png" width="800" style='border:130px solid #555' />
 
 Set up the FQDN or IP and port of your local Docker server, please ensure that your Docker daemon is running on a machine where your container(s) will be located
 
