@@ -10,7 +10,7 @@ $ docker pull ftsiadimos/lightdockerwebui:version1.0
 ```
 3. Use the image by running the following command:
 ```
-$ docker run -d -p 8008:8008 lightdockerwebui
+$ docker run -d -p 8008:8008 ftsiadimos/lightdockerwebui:version1.0 
 ```
 4. Open URL in a web browser.
 
