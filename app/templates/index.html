@@ -58,6 +58,7 @@
     <script>
       $(document).ready(function() {
         $('#data').DataTable({
+          stateSave: true,
           "order": [[ 1, 'asc' ]],
           "columnDefs": [
             { "targets": [0,5,6], "orderable": false },
