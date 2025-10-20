@@ -1,32 +1,65 @@
 {% extends 'base.html' %}
 
 {% block content %}
+  <!-- ➤  Back button – takes the user to the previous page -->
+  <button style="margin-bottom: 10px; font-size: 1rem;"
+          onclick="window.history.back();">
+    ← Back
+  </button>
 
-    <h1>In progress...</h1>
-    <div style="border: 45px solid; padding: 10px; width: 100%; overflow-y: auto; padding: 10px; background-color: #000000; color: rgb(255, 255, 255);">
-
+  <!-- Container for the terminal output – fixed height + scroll bar -->
+  <div id="output" style="border: 45px solid; padding: 10px; width: 100%; 
+    max-height: 80vh;          /* use most of the viewport height */
+    overflow-y: auto;           /* vertical scrollbar */
+    overflow-x: auto;           /* horizontal scrollbar if needed */
+    background-color: #000;     /* black background */
+    color: #00ff00;             /* green text */
+    font-family: monospace;     /* terminal font */
+    ">
     <div id="log"></div>
     <br>
     <form id="form">
-      <label for="text">Input: </label>
-      <input type="text" id="text" autofocus>
+      <label for="text" style="color: #00ff00;">Input: </label>
+      <input type="text" id="text" autofocus style="background:#000;color:#00ff00;border:none;outline:none;font-family:monospace;">
     </form>
     <script>
+      // ------------------------------------------------------------------
+      // 1️⃣  Convert every newline in the container output to an HTML <br>
+      // 2️⃣  Append a trailing <br> so that each *log* line ends with a break
+      // 3️⃣  Auto‑scroll the log container to the bottom after each update
+      // ------------------------------------------------------------------
       const log = (text, color) => {
-        document.getElementById('log').innerHTML += `<span style="color: ${color}">${text}</span><br>`;
+        const formatted = text.replaceAll('\n', '<br>');
+        const logEl = document.getElementById('log');
+        logEl.innerHTML += `<span style="color: ${color}">${formatted}</span><br>`;
+        // Scroll to the newest entry
+        logEl.parentElement.scrollTop = logEl.parentElement.scrollHeight;
       };
 
       const socket = new WebSocket('ws://' + location.host + '/echo?id={{id}}');
       socket.addEventListener('message', ev => {
-        log('<<< ' + ev.data, 'white');
+        if (ev.data === '__CLEAR__') {
+          document.getElementById('log').innerHTML = '';
+        } else {
+          log('<<< ' + ev.data, '#00ff00'); // green terminal output
+        }
       });
+
       document.getElementById('form').onsubmit = ev => {
         ev.preventDefault();
         const textField = document.getElementById('text');
-        log('>>> ' + textField.value, 'red');
+        log('>>> ' + textField.value, '#ff0000'); // user input in red
         socket.send(textField.value);
         textField.value = '';
       };
+
+      // Ensure the output is scrolled to the bottom on page load
+      window.addEventListener('load', () => {
+        const output = document.getElementById('output');
+        if (output) {
+          output.scrollTop = output.scrollHeight;
+        }
+      });
     </script>
-</div>
+  </div>
 {% endblock %}
