@@ -74,13 +74,12 @@ Docker Host – In the UI, set the FQDN/IP and port of the Docker host you want 
 TLS – If you enabled TLS on the Docker daemon, provide the client certificates in the UI settings.
 
 ## Screenshots
-
-<img src="mis/image1.png" width="800" />
 Dashboard view – list of running containers, status, and actions.
+<img src="mis/image1.png" width="800" />
 
-
-<img src="mis/image2.png" width="800" />
 Settings page – configure Docker host, TLS, and other options.
+<img src="mis/image2.png" width="800" />
+
 
 ## License
 MIT © 2025 FTSIADIMOS
