@@ -66,7 +66,7 @@ docker run -d \
   ftsiadimos/lightdockerwebui:latest
   ```
 
-The UI will be available at http://<host>:8008.
+The UI will be available at http://your.domain.com:8008.
 
 ## Configuration
 
