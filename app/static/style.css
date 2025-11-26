@@ -11,6 +11,7 @@ h1,h2,h3,h4,h5 {
   margin:0 0 10px;
   }
 
+  
 h2 { font-size:18px; line-height:24px; margin:20px 0 10px;}
 h3 { font-size:15px; margin:20px 0; }
 ul { margin:0 0 20px; }
@@ -369,3 +370,30 @@ pre code {
 .vg    { color: #008080 } /* Name.Variable.Global */
 .vi    { color: #008080 } /* Name.Variable.Instance */
 .il    { color: #099 } /* Literal.Number.Integer.Long */
+.wrap-image {
+  word-break: break-word;   /* break long words */
+  overflow-wrap: break-word;
+  white-space: normal;      /* allow wrapping */
+}
+
+/* Make the whole page a flex column that fills the viewport */
+html, body {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;          /* full height */
+}
+
+/* Let the main content area grow to fill the space */
+.container.mt-3 {
+  flex: 1;                    /* take up remaining space */
+}
+
+/* Optional: keep the footer at the bottom */
+footer {
+  flex-shrink: 0;             /* never shrink */
+}

@@ -1,23 +1,27 @@
 {% extends 'base.html' %}
 
 {% block content %}
-
- <div class="container">
-    <form action="" method="post">
-          {{ form.hidden_tag() }}
+<div class="container d-flex justify-content-center align-items-center">
+  <div class="card shadow-sm" style="max-width: 480px; width: 100%;">
+    <div class="card-header bg-primary text-white text-center">
+      <h5 class="mb-0">Add Connection</h5>
+    </div>
+    <div class="card-body">
+      <form action="" method="post">
+        {{ form.hidden_tag() }}
         <p>
-            {{ form.name.label }}<br>
-            {{ form.name(size=32, value=user.name)}}<br>
+          {{ form.name.label }}<br>
+          {{ form.name(size=32, value=user.name) }}<br>
         </p>
         <p>
-            {{ form.port.label }}<br>
-            {{ form.port(size=8, value=user.port)}}<br>
+          {{ form.port.label }}<br>
+          {{ form.port(size=8, value=user.port) }}<br>
         </p>
-        <p>{{ form.submit() }}</p>
-    </form>
-
-  
+        <p class="text-center">
+          {{ form.submit(class="btn btn-primary w-100") }}
+        </p>
+      </form>
+    </div>
+  </div>
 </div>
-
-
 {% endblock %}

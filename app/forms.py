@@ -9,7 +9,7 @@ from app.models import Owner
 
 
 class AddForm(FlaskForm):
-    name = StringField('Docker Server URL(FQDN)')
+    name = StringField('Docker Server URL(FQDN) Example:docker.example.com')
     port = StringField('Docker Server Port(PORT)')
     submit = SubmitField('Save')
     

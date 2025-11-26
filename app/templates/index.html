@@ -13,17 +13,17 @@
             <th>Image</th>
             <th>Status</th>
             <th>Host Ports</th>
-            <th>Logs</th>
-             <th>Runs</th>
+            <th>Log</th>
+             <th>Run</th>
         </tr>
     </thead>
     <tbody>
             {% for i in doc %}
                 <tr>   
                     <td><input type="checkbox" id="{{ i.id }}" name="interests" value="{{ i.id }}"></td>
-                    <td>{{ i.name }}</td> 
+                    <td class="wrap-image">{{ i.name }}</td> 
                     {%  set image_name = i.attrs['Config']['Image'] %}
-                    <td>{{ image_name }}</td>
+                    <td class="wrap-image">{{ image_name }}</td>
                     <td>{{ i.status }}</td>
                     {% set ports = i.ports %}
                     <td>{% for internal_port, host_ports in ports.items()%}
@@ -48,7 +48,7 @@
                 <input type="submit" name="submit_button" class="btn btn-primary" value="Start">
                 <input type="submit" name="submit_button" class="btn btn-primary" value="Stop">
                  <input type="submit" name="submit_button" class="btn btn-primary" value="Restart">
-                <input type="submit" name="submit_button" class="btn btn-primary" onclick="return confirm('Are you sure you want to delete this item?');"  value="Delete">
+                <input type="submit" name="submit_button" class="btn btn-danger" onclick="return confirm('Are you sure you want to delete this item?');"  value="Delete">
             </div>
     </tbody>
 </table>

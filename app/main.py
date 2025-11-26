@@ -156,33 +156,19 @@ def echo(sock):
 @app.route("/submitadmin", methods=["POST"])
 def submit_remove():
     action = request.form.get("submit_button")
-    client, serverurl = conf()
-    if action == "Delete":
-        user_interests = request.form.getlist("interests")
-        for interest in user_interests:
-            container = client.containers.get(interest)
-            container.stop()
-            container.remove()
-        return redirect(url_for('index'))
-    elif action == "Start":
-        user_interests = request.form.getlist("interests")
-        for interest in user_interests:
-            container = client.containers.get(interest)
-            container.start()
-        return redirect(url_for('index'))
+    client, _ = conf()
+    container_ids = request.form.getlist("interests")
 
-    elif action == "Restart":
-        user_interests = request.form.getlist("interests")
-        for interest in user_interests:
-            container = client.containers.get(interest)
-            container.restart()
-        return redirect(url_for('index'))
+    action_map = {
+        "Delete": lambda c: c.remove(),
+        "Start": lambda c: c.start(),
+        "Restart": lambda c: c.restart(),
+        "Stop": lambda c: c.stop(),
+    }
 
-    elif action == "Stop":
-        user_interests = request.form.getlist("interests")
-        for interest in user_interests:
-                container = client.containers.get(interest)
-                container.stop()
-        return redirect(url_for('index'))
-    else:
-        return "Invalid form submission"
+    if action in action_map:
+        for cid in container_ids:
+            container = client.containers.get(cid)
+            action_map[action](container)
+        return redirect(url_for("index"))
+    return "Invalid form submission"

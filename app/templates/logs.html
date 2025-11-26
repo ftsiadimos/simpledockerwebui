@@ -18,11 +18,12 @@
     overflow-y: auto;           /* vertical scrollbar */
     overflow-x: auto;           /* horizontal scrollbar if needed */
     background-color: #000;     /* black background */
-    color: #00ff00;             /* green text */
+    color: hsl(228, 12%, 17%);             /* green text */
     font-family: monospace;     /* terminal font */
     white-space: pre-wrap;      /* preserve line breaks */
 ">
-   {{ logs | replace('\\n', '<br>') | trim("'") | safe }}
+ <label for="text" style="color: #00ff00;">
+   {{ logs | replace('\\n', '<br>') | trim("'") | safe }}</label>
 </div>
 
 <script>
