@@ -1,14 +1,45 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
-
-<div class="about-section">
-  <h1>Simple Docker WebUI.</h1>
-  <p>Straightforward interface to control the containers for your docker home server.</p>
-  <p>Report any issues you encounter on my GitHub page.</p>
-  <i class="fa fa-github" style="font-size:36px"></i> <a href="https://github.com/ftsiadimos/simpledockerwebui">SimpleDockerWebUI</a>
+<div class="row justify-content-center">
+  <div class="col-12 col-md-8 col-lg-6">
+    <div class="card shadow-sm text-center">
+      <div class="card-body py-5">
+        <img src="{{ url_for('static', filename='dockermanager.png') }}"
+             alt="Docker Manager Logo"
+             height="100"
+             class="mb-4">
+        
+        <h1 class="h3 mb-3">LightDockerWebUI</h1>
+        <p class="lead text-muted mb-4">
+          A lightweight, user-friendly web interface for monitoring and managing your Docker containers.
+        </p>
+        
+        <hr class="my-4">
+        
+        <h5 class="mb-3">Features</h5>
+        <ul class="list-unstyled text-start mx-auto" style="max-width: 300px;">
+          <li class="mb-2"><i class="fa fa-check text-success" aria-hidden="true"></i> View all containers</li>
+          <li class="mb-2"><i class="fa fa-check text-success" aria-hidden="true"></i> Start, stop, restart containers</li>
+          <li class="mb-2"><i class="fa fa-check text-success" aria-hidden="true"></i> View container logs</li>
+          <li class="mb-2"><i class="fa fa-check text-success" aria-hidden="true"></i> Interactive terminal access</li>
+          <li class="mb-2"><i class="fa fa-check text-success" aria-hidden="true"></i> Remote Docker host support</li>
+        </ul>
+        
+        <hr class="my-4">
+        
+        <p class="mb-3">Found an issue? Have a suggestion?</p>
+        <a href="https://github.com/ftsiadimos/simpledockerwebui" 
+           target="_blank" 
+           rel="noopener noreferrer"
+           class="btn btn-dark btn-lg">
+          <i class="fa fa-github" aria-hidden="true"></i> View on GitHub
+        </a>
+      </div>
+      <div class="card-footer bg-light">
+        <small class="text-muted">Version 1.0.0 &middot; MIT License</small>
+      </div>
+    </div>
+  </div>
 </div>
-
-
 {% endblock %}

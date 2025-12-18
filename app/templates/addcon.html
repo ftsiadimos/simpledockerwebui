@@ -1,26 +1,131 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<div class="container d-flex justify-content-center align-items-center">
-  <div class="card shadow-sm" style="max-width: 480px; width: 100%;">
-    <div class="card-header bg-primary text-white text-center">
-      <h5 class="mb-0">Add Connection</h5>
+<div class="row justify-content-center">
+  <div class="col-12 col-lg-10">
+    <div class="row g-4">
+      
+      <!-- Select Server Card -->
+      <div class="col-12 col-md-6">
+        <div class="card shadow-sm h-100">
+          <div class="card-header bg-primary text-white">
+            <h5 class="mb-0"><i class="fa fa-plug" aria-hidden="true"></i> Select Docker Server</h5>
+          </div>
+          <div class="card-body">
+            {% if servers %}
+            <form action="" method="post">
+              {{ select_form.hidden_tag() }}
+              
+              <div class="mb-3">
+                {{ select_form.server.label(class="form-label") }}
+                {{ select_form.server(class="form-select") }}
+              </div>
+              
+              <div class="d-grid">
+                {{ select_form.submit_select(class="btn btn-primary") }}
+              </div>
+            </form>
+            
+            <!-- Server List -->
+            <hr>
+            <h6 class="text-muted mb-3">Saved Servers</h6>
+            <div class="list-group">
+              {% for server in servers %}
+              <div class="list-group-item d-flex justify-content-between align-items-center {% if server.is_active %}list-group-item-success{% endif %}">
+                <div>
+                  <strong>{{ server.display_name }}</strong>
+                  {% if server.is_active %}<span class="badge bg-success ms-2">Active</span>{% endif %}
+                  <br>
+                  <small class="text-muted">
+                    {% if server.host and server.port %}
+                      tcp://{{ server.host }}:{{ server.port }}
+                    {% elif server.host %}
+                      {{ server.host }}{% if server.port %}:{{ server.port }}{% endif %}
+                    {% else %}
+                      unix://var/run/docker.sock (local)
+                    {% endif %}
+                  </small>
+                </div>
+                <form action="" method="post" class="d-inline" onsubmit="return confirm('Delete this server?');">
+                  {{ select_form.hidden_tag() }}
+                  <button type="submit" name="delete_server" value="{{ server.id }}" class="btn btn-outline-danger btn-sm" title="Delete server">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-trash" viewBox="0 0 16 16">
+                      <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0z"/>
+                      <path d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4zM2.5 3h11V2h-11z"/>
+                    </svg>
+                  </button>
+                </form>
+              </div>
+              {% endfor %}
+            </div>
+            {% else %}
+            <div class="text-center text-muted py-4">
+              <i class="fa fa-server fa-3x mb-3" aria-hidden="true"></i>
+              <p>No servers configured yet.<br>Add your first server using the form.</p>
+            </div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+      
+      <!-- Add Server Card -->
+      <div class="col-12 col-md-6">
+        <div class="card shadow-sm h-100">
+          <div class="card-header bg-success text-white">
+            <h5 class="mb-0"><i class="fa fa-plus-circle" aria-hidden="true"></i> Add New Server</h5>
+          </div>
+          <div class="card-body">
+            <form action="" method="post" novalidate>
+              {{ add_form.hidden_tag() }}
+              
+              <div class="mb-3">
+                {{ add_form.display_name.label(class="form-label") }}
+                {{ add_form.display_name(class="form-control") }}
+                {% if add_form.display_name.errors %}
+                  <div class="invalid-feedback d-block">
+                    {% for error in add_form.display_name.errors %}{{ error }}{% endfor %}
+                  </div>
+                {% endif %}
+                <div class="form-text">A friendly name for this server</div>
+              </div>
+              
+              <div class="mb-3">
+                {{ add_form.host.label(class="form-label") }}
+                {{ add_form.host(class="form-control") }}
+                {% if add_form.host.errors %}
+                  <div class="invalid-feedback d-block">
+                    {% for error in add_form.host.errors %}{{ error }}{% endfor %}
+                  </div>
+                {% endif %}
+                <div class="form-text">Leave empty to use local Docker socket</div>
+              </div>
+              
+              <div class="mb-3">
+                {{ add_form.port.label(class="form-label") }}
+                {{ add_form.port(class="form-control") }}
+                {% if add_form.port.errors %}
+                  <div class="invalid-feedback d-block">
+                    {% for error in add_form.port.errors %}{{ error }}{% endfor %}
+                  </div>
+                {% endif %}
+                <div class="form-text">Default: 2376 (TLS) or 2375 (no TLS)</div>
+              </div>
+              
+              <div class="d-grid gap-2">
+                {{ add_form.submit(class="btn btn-success") }}
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+      
     </div>
-    <div class="card-body">
-      <form action="" method="post">
-        {{ form.hidden_tag() }}
-        <p>
-          {{ form.name.label }}<br>
-          {{ form.name(size=32, value=user.name) }}<br>
-        </p>
-        <p>
-          {{ form.port.label }}<br>
-          {{ form.port(size=8, value=user.port) }}<br>
-        </p>
-        <p class="text-center">
-          {{ form.submit(class="btn btn-primary w-100") }}
-        </p>
-      </form>
+    
+    <!-- Back button -->
+    <div class="text-center mt-4">
+      <a href="{{ url_for('main.index') }}" class="btn btn-outline-secondary">
+        <i class="fa fa-arrow-left" aria-hidden="true"></i> Back to Dashboard
+      </a>
     </div>
   </div>
 </div>

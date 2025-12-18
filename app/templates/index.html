@@ -1,80 +1,192 @@
 {% extends 'base.html' %}
 
-
 {% block content %}
+<style>
+  /* Table cell styling */
+  .wrap-cell {
+    padding-right: 0.5rem;
+    vertical-align: middle;
+  }
+  .wrap-cell .ellipsis {
+    display: inline-block;
+    max-width: 200px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    vertical-align: middle;
+  }
+  .btn-cell {
+    text-align: center;
+    white-space: nowrap;
+  }
+  /* Status badges */
+  .status-running { color: #198754; font-weight: 500; }
+  .status-exited { color: #dc3545; }
+  .status-paused { color: #ffc107; }
+  /* Action buttons row */
+  .action-buttons {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    margin-top: 1rem;
+    padding: 1rem 0;
+    border-top: 1px solid #dee2e6;
+  }
+  /* Responsive adjustments */
+  @media (max-width: 992px) {
+    .wrap-cell .ellipsis { max-width: 120px; }
+  }
+  @media (max-width: 576px) {
+    .wrap-cell .ellipsis { max-width: 80px; }
+    .action-buttons { justify-content: center; }
+  }
+</style>
 
-<div class="container">
-      <form action="/submitadmin" method="post">
-    <table id="data" class="table table-striped">
-    <thead>
-        <tr>
-            <th><input type="checkbox" onClick="toggle(this)" /></th>
-            <th>Name</th>
-            <th>Image</th>
-            <th>Status</th>
-            <th>Host Ports</th>
-            <th>Log</th>
-             <th>Run</th>
-        </tr>
-    </thead>
-    <tbody>
-            {% for i in doc %}
-                <tr>   
-                    <td><input type="checkbox" id="{{ i.id }}" name="interests" value="{{ i.id }}"></td>
-                    <td class="wrap-image">{{ i.name }}</td> 
-                    {%  set image_name = i.attrs['Config']['Image'] %}
-                    <td class="wrap-image">{{ image_name }}</td>
-                    <td>{{ i.status }}</td>
-                    {% set ports = i.ports %}
-                    <td>{% for internal_port, host_ports in ports.items()%}
-                        {% if host_ports %}
-                        {% for host_port_info in host_ports %}
-                         {% if loop.index == 1 %}
-                            {% set host_ip = host_port_info.get('HostIp', '0.0.0.0') %}
-                            {% set host_port = host_port_info.get('HostPort') %}
-                            {{ internal_port}}-><a href="http://{{ serverurl.name }}:{{ host_port }}">{{ host_port }}</a>
-                             {% endif %}
-                        {% endfor %}
-                        {% endif %}
-               
+<div class="card shadow-sm">
+  <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+    <h5 class="mb-0"><i class="fa fa-docker" aria-hidden="true"></i> Containers</h5>
+    <div class="d-flex align-items-center gap-2">
+      {% if serverurl %}
+      <small class="text-white-50">
+        <i class="fa fa-server" aria-hidden="true"></i>
+        {{ serverurl.display_name if serverurl.display_name else 'Local' }}
+      </small>
+      {% endif %}
+      <span class="badge bg-light text-dark">{{ doc|length }} total</span>
+    </div>
+  </div>
+  <div class="card-body p-0">
+    <form action="{{ url_for('main.submit_remove') }}" method="post" id="containerForm">
+      <!-- Action Buttons -->
+      {% if doc %}
+      <div class="action-buttons px-3 py-2 bg-light border-bottom">
+        <button type="submit" name="submit_button" value="Start" class="btn btn-success btn-sm">
+          <i class="fa fa-play" aria-hidden="true"></i> Start
+        </button>
+        <button type="submit" name="submit_button" value="Stop" class="btn btn-warning btn-sm">
+          <i class="fa fa-stop" aria-hidden="true"></i> Stop
+        </button>
+        <button type="submit" name="submit_button" value="Restart" class="btn btn-info btn-sm">
+          <i class="fa fa-refresh" aria-hidden="true"></i> Restart
+        </button>
+        <button type="submit" name="submit_button" value="Delete" class="btn btn-danger btn-sm"
+                onclick="return confirm('Are you sure you want to delete the selected container(s)?');">
+          <i class="fa fa-trash" aria-hidden="true"></i> Delete
+        </button>
+      </div>
+      {% endif %}
+      <div class="table-responsive">
+        <table id="containersTable" class="table table-striped table-hover mb-0">
+          <thead class="table-light">
+            <tr>
+              <th scope="col" style="width: 40px;">
+                <input type="checkbox" id="selectAll" aria-label="Select all containers">
+              </th>
+              <th scope="col">Name</th>
+              <th scope="col" class="d-none d-md-table-cell">Image</th>
+              <th scope="col">Status</th>
+              <th scope="col" class="d-none d-lg-table-cell">Ports</th>
+              <th scope="col" style="width: 80px;">Logs</th>
+              <th scope="col" style="width: 80px;">Terminal</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for container in doc %}
+            <tr>
+              <td>
+                <input type="checkbox" name="interests" value="{{ container.id }}" 
+                       aria-label="Select {{ container.name }}">
+              </td>
+              <td class="wrap-cell">
+                <span class="ellipsis" title="{{ container.name }}">{{ container.name }}</span>
+              </td>
+              <td class="wrap-cell d-none d-md-table-cell">
+                {% set image_name = container.attrs['Config']['Image'] %}
+                <span class="ellipsis" title="{{ image_name }}">{{ image_name }}</span>
+              </td>
+              <td class="wrap-cell">
+                {% if 'running' in container.status.lower() %}
+                  <span class="status-running" title="{{ container.status }}">● Running</span>
+                {% elif 'exited' in container.status.lower() %}
+                  <span class="status-exited" title="{{ container.status }}">● Exited</span>
+                {% elif 'paused' in container.status.lower() %}
+                  <span class="status-paused" title="{{ container.status }}">● Paused</span>
+                {% else %}
+                  <span class="ellipsis" title="{{ container.status }}">{{ container.status }}</span>
+                {% endif %}
+              </td>
+              <td class="wrap-cell d-none d-lg-table-cell">
+                {% set ports = container.ports %}
+                {% for internal_port, host_ports in ports.items() %}
+                  {% if host_ports %}
+                    {% for host_port_info in host_ports %}
+                      {% set host_port = host_port_info.get('HostPort') %}
+                      <a href="http://{{ serverurl.name if serverurl and serverurl.name else 'localhost' }}:{{ host_port }}" 
+                         target="_blank" 
+                         class="badge bg-secondary text-decoration-none"
+                         title="{{ internal_port }} → {{ host_port }}">
+                        :{{ host_port }}
+                      </a>
                     {% endfor %}
-                    </td>
-                    <td><button type="submit" formaction="/logs" name="logs" value="{{i.id}}" class="btn btn-primary">Logs</button></td>
-                   <td><button type="submit" formaction="/comma" name="comma" value="{{i.id}}" class="btn btn-primary">Run</button></td>
-                </tr>
+                  {% endif %}
+                {% else %}
+                  <span class="text-muted">—</span>
+                {% endfor %}
+              </td>
+              <td class="btn-cell">
+                <button type="submit" formaction="{{ url_for('main.logs') }}" 
+                        name="logs" value="{{ container.id }}" 
+                        class="btn btn-outline-primary btn-sm"
+                        title="View logs">
+                  <i class="fa fa-file-text-o" aria-hidden="true"></i> Logs
+                </button>
+              </td>
+              <td class="btn-cell">
+                <button type="submit" formaction="{{ url_for('main.comma') }}" 
+                        name="comma" value="{{ container.id }}" 
+                        class="btn btn-outline-success btn-sm"
+                        title="Open terminal">
+                  <i class="fa fa-terminal" aria-hidden="true"></i> Terminal
+                </button>
+              </td>
+            </tr>
+            {% else %}
+            <tr>
+              <td colspan="7" class="text-center py-4 text-muted">
+                <i class="fa fa-inbox fa-2x mb-2" aria-hidden="true"></i>
+                <p class="mb-0">No containers found</p>
+              </td>
+            </tr>
             {% endfor %}
-
-            <div class="btn-group">
-                <input type="submit" name="submit_button" class="btn btn-primary" value="Start">
-                <input type="submit" name="submit_button" class="btn btn-primary" value="Stop">
-                 <input type="submit" name="submit_button" class="btn btn-primary" value="Restart">
-                <input type="submit" name="submit_button" class="btn btn-danger" onclick="return confirm('Are you sure you want to delete this item?');"  value="Delete">
-            </div>
-    </tbody>
-</table>
-  </form>
+          </tbody>
+        </table>
+      </div>
+    </form>
+  </div>
 </div>
- 
-    <script>
-      $(document).ready(function() {
-        $('#data').DataTable({
-          stateSave: true,
-          "order": [[ 1, 'asc' ]],
-          "columnDefs": [
-            { "targets": [0,5,6], "orderable": false },
-            { "targets": [0,5,6], "searchable": false }
-          ]
-        });
-      });
-    </script>
 
-<script language="JavaScript">
-function toggle(source) {
-  checkboxes = document.getElementsByName('interests');
-  for(var checkbox in checkboxes)
-    checkboxes[checkbox].checked = source.checked;
-}
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    // Initialize DataTable
+    $('#containersTable').DataTable({
+      stateSave: true,
+      order: [[1, 'asc']],
+      columnDefs: [
+        { targets: [0, 5, 6], orderable: false, searchable: false }
+      ],
+      language: {
+        search: 'Filter:',
+        emptyTable: 'No containers available'
+      }
+    });
+
+    // Select all checkbox
+    document.getElementById('selectAll').addEventListener('change', function() {
+      const checkboxes = document.querySelectorAll('input[name="interests"]');
+      checkboxes.forEach(cb => cb.checked = this.checked);
+    });
+  });
 </script>
-
 {% endblock %}
 

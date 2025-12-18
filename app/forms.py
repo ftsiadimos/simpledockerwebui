@@ -1,15 +1,49 @@
-#!/usr/bin/env python3
-# forms.py
+"""Form definitions for LightDockerWebUI."""
 from flask_wtf import FlaskForm
-from wtforms import Form, StringField, SelectField, validators, PasswordField, BooleanField, SubmitField, TextAreaField
-from wtforms.validators import ValidationError, DataRequired, Email, EqualTo
-from wtforms.widgets.core import TextArea
-from app.models import Owner
+from wtforms import StringField, SubmitField, SelectField
+from wtforms.validators import Optional, Length, Regexp, DataRequired
 
 
+class AddServerForm(FlaskForm):
+    """Form for adding a new Docker server."""
+    display_name = StringField(
+        'Server Name',
+        validators=[
+            DataRequired(message='Server name is required'),
+            Length(max=100, message='Name must be less than 100 characters')
+        ],
+        render_kw={'placeholder': 'My Docker Server'}
+    )
+    host = StringField(
+        'Docker Host (FQDN/IP)',
+        validators=[
+            Optional(),
+            Length(max=255, message='Host must be less than 255 characters')
+        ],
+        render_kw={'placeholder': 'docker.example.com or 192.168.1.100'}
+    )
+    port = StringField(
+        'Docker Port',
+        validators=[
+            Optional(),
+            Length(max=10),
+            Regexp(r'^\d*$', message='Port must be a number')
+        ],
+        render_kw={'placeholder': '2376'}
+    )
+    submit = SubmitField('Add Server')
 
-class AddForm(FlaskForm):
-    name = StringField('Docker Server URL(FQDN) Example:docker.example.com')
-    port = StringField('Docker Server Port(PORT)')
-    submit = SubmitField('Save')
+
+class SelectServerForm(FlaskForm):
+    """Form for selecting the active Docker server."""
+    server = SelectField(
+        'Select Docker Server',
+        coerce=int,
+        validators=[DataRequired()]
+    )
+    submit_select = SubmitField('Connect')
+
+
+# Backward compatibility alias
+AddForm = AddServerForm
     

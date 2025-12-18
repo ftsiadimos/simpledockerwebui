@@ -1,65 +1,181 @@
 {% extends 'base.html' %}
 
 {% block content %}
-  <!-- ➤  Back button – takes the user to the previous page -->
-  <button style="margin-bottom: 10px; font-size: 1rem;"
-          onclick="window.history.back();">
-    ← Back
-  </button>
+<style>
+  .terminal-container {
+    background-color: #1e1e1e;
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .terminal-header {
+    background-color: #2d2d2d;
+    padding: 0.5rem 1rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #3d3d3d;
+  }
+  .terminal-title {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .terminal-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    display: inline-block;
+  }
+  .terminal-dot.red { background-color: #ff5f56; }
+  .terminal-dot.yellow { background-color: #ffbd2e; }
+  .terminal-dot.green { background-color: #27ca40; }
+  .terminal-body {
+    padding: 1rem;
+    max-height: 70vh;
+    min-height: 400px;
+    overflow-y: auto;
+    overflow-x: auto;
+    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+    font-size: 0.875rem;
+    line-height: 1.6;
+  }
+  .terminal-body::-webkit-scrollbar {
+    width: 8px;
+  }
+  .terminal-body::-webkit-scrollbar-track {
+    background: #2d2d2d;
+  }
+  .terminal-body::-webkit-scrollbar-thumb {
+    background: #555;
+    border-radius: 4px;
+  }
+  #log {
+    color: #00ff00;
+  }
+  .terminal-input-line {
+    display: flex;
+    align-items: center;
+    margin-top: 0.5rem;
+  }
+  .terminal-prompt {
+    color: #00ff00;
+    margin-right: 0.5rem;
+    white-space: nowrap;
+  }
+  .terminal-input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: #00ff00;
+    font-family: inherit;
+    font-size: inherit;
+    caret-color: #00ff00;
+  }
+  .terminal-input::placeholder {
+    color: #666;
+  }
+  .output-line { color: #00ff00; }
+  .input-line { color: #ff6b6b; }
+  .error-line { color: #ff5f56; }
+  .terminal-hint {
+    color: #666;
+    font-size: 0.75rem;
+    margin-top: 0.5rem;
+  }
+</style>
 
-  <!-- Container for the terminal output – fixed height + scroll bar -->
-  <div id="output" style="border: 45px solid; padding: 10px; width: 100%; 
-    max-height: 80vh;          /* use most of the viewport height */
-    overflow-y: auto;           /* vertical scrollbar */
-    overflow-x: auto;           /* horizontal scrollbar if needed */
-    background-color: #000;     /* black background */
-    color: hsl(228, 12%, 17%);             /* green text */
-    font-family: monospace;     /* terminal font */
-    ">
-    <div id="log"></div>
-    <br>
-    <form id="form">
-      <label for="text" style="color: #00ff00;">Input: </label>
-      <input type="text" id="text" autofocus style="background:#000;color:#00ff00;border:none;outline:none;font-family:monospace;">
-    </form>
-    <script>
-      // ------------------------------------------------------------------
-      // 1️⃣  Convert every newline in the container output to an HTML <br>
-      // 2️⃣  Append a trailing <br> so that each *log* line ends with a break
-      // 3️⃣  Auto‑scroll the log container to the bottom after each update
-      // ------------------------------------------------------------------
-      const log = (text, color) => {
-        const formatted = text.replaceAll('\n', '<br>');
-        const logEl = document.getElementById('log');
-        logEl.innerHTML += `<span style="color: ${color}">${formatted}</span><br>`;
-        // Scroll to the newest entry
-        logEl.parentElement.scrollTop = logEl.parentElement.scrollHeight;
-      };
-
-      const socket = new WebSocket('ws://' + location.host + '/echo?id={{id}}');
-      socket.addEventListener('message', ev => {
-        if (ev.data === '__CLEAR__') {
-          document.getElementById('log').innerHTML = '';
-        } else {
-          log('<<< ' + ev.data, '#00ff00'); // green terminal output
-        }
-      });
-
-      document.getElementById('form').onsubmit = ev => {
-        ev.preventDefault();
-        const textField = document.getElementById('text');
-        log('>>> ' + textField.value, '#ff0000'); // user input in red
-        socket.send(textField.value);
-        textField.value = '';
-      };
-
-      // Ensure the output is scrolled to the bottom on page load
-      window.addEventListener('load', () => {
-        const output = document.getElementById('output');
-        if (output) {
-          output.scrollTop = output.scrollHeight;
-        }
-      });
-    </script>
+<div class="terminal-container shadow">
+  <div class="terminal-header">
+    <div class="terminal-title">
+      <span class="terminal-dot red"></span>
+      <span class="terminal-dot yellow"></span>
+      <span class="terminal-dot green"></span>
+      <span class="text-light ms-2">Terminal — {{ id[:12] }}</span>
+    </div>
+    <button type="button" class="btn btn-outline-light btn-sm" onclick="window.history.back();" title="Close terminal">
+      <i class="fa fa-times" aria-hidden="true"></i> Close
+    </button>
   </div>
+  <div id="output" class="terminal-body">
+    <div id="log"></div>
+    <form id="terminalForm" class="terminal-input-line">
+      <span class="terminal-prompt">$</span>
+      <input type="text" 
+             id="terminalInput" 
+             class="terminal-input" 
+             autocomplete="off" 
+             autofocus
+             placeholder="Type a command...">
+    </form>
+    <div class="terminal-hint">
+      Built-in commands: <code>cd</code>, <code>pwd</code>, <code>clear</code>
+    </div>
+  </div>
+</div>
+
+<script>
+  const log = document.getElementById('log');
+  const output = document.getElementById('output');
+  const form = document.getElementById('terminalForm');
+  const input = document.getElementById('terminalInput');
+
+  // WebSocket connection
+  const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const socket = new WebSocket(`${wsProtocol}//${location.host}/echo?id={{ id }}`);
+
+  // Log message to terminal
+  function appendLog(text, className) {
+    const formatted = text.replace(/\n/g, '<br>');
+    const line = document.createElement('div');
+    line.className = className;
+    line.innerHTML = formatted;
+    log.appendChild(line);
+    output.scrollTop = output.scrollHeight;
+  }
+
+  // Handle incoming messages
+  socket.addEventListener('message', (event) => {
+    if (event.data === '__CLEAR__') {
+      log.innerHTML = '';
+    } else {
+      appendLog(event.data, 'output-line');
+    }
+  });
+
+  // Handle connection events
+  socket.addEventListener('open', () => {
+    appendLog('Connected to container terminal.', 'output-line');
+  });
+
+  socket.addEventListener('close', () => {
+    appendLog('Connection closed.', 'error-line');
+  });
+
+  socket.addEventListener('error', () => {
+    appendLog('Connection error.', 'error-line');
+  });
+
+  // Handle form submission
+  form.addEventListener('submit', (event) => {
+    event.preventDefault();
+    const command = input.value.trim();
+    if (command) {
+      appendLog(`$ ${command}`, 'input-line');
+      socket.send(command);
+      input.value = '';
+    }
+  });
+
+  // Keep input focused
+  output.addEventListener('click', () => {
+    input.focus();
+  });
+
+  // Scroll to bottom on load
+  window.addEventListener('load', () => {
+    output.scrollTop = output.scrollHeight;
+    input.focus();
+  });
+</script>
 {% endblock %}

@@ -3,51 +3,98 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    {% if title %}
-    <title>{{ title }} - Docker</title>
-    {% else %}
-    <title>Simple Docker WebUI</title>
-    {% endif %}
-  
+    <meta name="description" content="Lightweight Docker container management web interface">
+    <meta name="theme-color" content="#212529">
+    
+    <title>{% if title %}{{ title }} - {% endif %}Docker Manager</title>
 
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='bootstrap.min1.css') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='dataTables.bootstrap5.css') }}">
-   <script type = "text/javascript" src = "{{ url_for('static', filename = 'jquery-3.6.0.min.js') }}" ></script>
-   <script type = "text/javascript" src = "{{ url_for('static', filename = 'jquery.dataTables.js') }}" ></script>
-   <script type = "text/javascript" src = "{{ url_for('static', filename = 'dataTables.bootstrap5.js') }}" ></script>
-   <script type = "text/javascript" src = "{{ url_for('static', filename = 'bootstrap.min.js') }}" ></script>
+    <!-- Favicon -->
+    <link rel="icon" href="{{ url_for('static', filename='dockermanager.png') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='dockermanager.png') }}">
 
+    <!-- Stylesheets -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='bootstrap.min1.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='dataTables.bootstrap5.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    
+    <!-- Scripts (defer for better performance) -->
+    <script src="{{ url_for('static', filename='jquery-3.6.0.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='jquery.dataTables.js') }}" defer></script>
+    <script src="{{ url_for('static', filename='dataTables.bootstrap5.js') }}" defer></script>
+    <script src="{{ url_for('static', filename='bootstrap.min.js') }}" defer></script>
+  </head>
 
-
- </head>
-  
- <body>
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+  <body class="d-flex flex-column min-vh-100">
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark" role="navigation">
       <div class="container-fluid">
-        <a class="navbar-brand" href="{{ url_for('index') }}">Home</a>
-    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
-      <span class="navbar-toggler-icon"></span>
-    </button>
-        <div class="collapse navbar-collapse" id="navbarSupportedContent">
-          <ul  class="navbar-nav ms-auto">
-            <li class="nav-item"> <a class="nav-link" aria-current="page" href="{{ url_for('addcon') }}">Config</a></li> 
-             <li class="nav-item"> <a class="nav-link" aria-current="page" href="{{ url_for('about') }}">About</a></li> 
+        <a class="navbar-brand d-flex align-items-center" href="{{ url_for('main.index') }}">
+          <img src="{{ url_for('static', filename='dockermanager.png') }}"
+               alt=""
+               height="30"
+               class="me-2">
+          <span>Docker Manager</span>
+        </a>
+        <button class="navbar-toggler" type="button" 
+                data-bs-toggle="collapse"
+                data-bs-target="#navbarMain"
+                aria-controls="navbarMain"
+                aria-expanded="false"
+                aria-label="Toggle navigation">
+          <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarMain">
+          <ul class="navbar-nav ms-auto">
+            <li class="nav-item">
+              <a class="nav-link" href="{{ url_for('main.index') }}">
+                <i class="fa fa-home" aria-hidden="true"></i> Home
+              </a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="{{ url_for('main.addcon') }}">
+                <i class="fa fa-cog" aria-hidden="true"></i> Config
+              </a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="{{ url_for('main.about') }}">
+                <i class="fa fa-info-circle" aria-hidden="true"></i> About
+              </a>
+            </li>
           </ul>
         </div>
       </div>
     </nav>
-    <div class="py-3"></div>
-    <div class="container mt-3">
-      {% block content %}{% endblock %}
-    </div>
-  <div class="py-3"></div>
 
-    <!-- Footer with developer name -->
-    <footer class="bg-dark text-white text-center py-2">
-      <small>Developed by <strong>Fotios Tsiadimos</strong></small>
+    <!-- Flash Messages -->
+    <div class="container mt-2">
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          {% for category, message in messages %}
+            <div class="alert alert-{{ category if category in ['success', 'danger', 'warning', 'info'] else 'info' }} alert-dismissible fade show" role="alert">
+              {{ message }}
+              <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+          {% endfor %}
+        {% endif %}
+      {% endwith %}
+    </div>
+
+    <!-- Main Content -->
+    <main class="container mt-2 flex-grow-1">
+      {% block content %}{% endblock %}
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-dark text-white text-center py-3 mt-auto">
+      <div class="container">
+        <small>
+          &copy; {{ now().year if now is defined else 2025 }} 
+          <a href="https://github.com/ftsiadimos" class="text-white text-decoration-none">Fotis Tsiadimos</a>
+          &middot; LightDockerWebUI
+        </small>
+      </div>
     </footer>
-</body>
+  </body>
 </html>
 
 
