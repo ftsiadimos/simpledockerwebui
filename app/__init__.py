@@ -1,4 +1,5 @@
 from flask import Flask
+import os
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from config import Config
@@ -21,7 +22,12 @@ def create_app(config_class=Config):
         from app.main import main_bp, init_sock
         app.register_blueprint(main_bp)
         init_sock(app)
-        
+
+        # Ensure instance directory exists for SQLite
+        instance_path = app.config.get('INSTANCE_PATH')
+        if instance_path and not os.path.exists(instance_path):
+            os.makedirs(instance_path, exist_ok=True)
+
         # Create database tables if they don't exist
         db.create_all()
 

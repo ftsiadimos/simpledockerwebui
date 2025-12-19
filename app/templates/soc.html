@@ -156,6 +156,11 @@
     appendLog('Connection error.', 'error-line');
   });
 
+  // Built-in commands for autocompletion
+  const builtinCommands = [
+    'cd', 'pwd', 'clear', 'ls', 'cat', 'echo', 'help', '?', 'exit'
+  ];
+
   // Handle form submission
   form.addEventListener('submit', (event) => {
     event.preventDefault();
@@ -164,6 +169,25 @@
       appendLog(`$ ${command}`, 'input-line');
       socket.send(command);
       input.value = '';
+    }
+  });
+
+  // Tab autocompletion for commands
+  input.addEventListener('keydown', (event) => {
+    if (event.key === 'Tab') {
+      event.preventDefault();
+      const val = input.value.trim();
+      if (!val) return;
+      // Only autocomplete first word (the command)
+      const parts = val.split(/\s+/);
+      if (parts.length === 1) {
+        const matches = builtinCommands.filter(cmd => cmd.startsWith(parts[0]));
+        if (matches.length === 1) {
+          input.value = matches[0] + ' ';
+        } else if (matches.length > 1) {
+          appendLog(matches.join('    '), 'terminal-hint');
+        }
+      }
     }
   });
 

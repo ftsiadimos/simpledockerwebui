@@ -7,7 +7,7 @@ from bs4 import BeautifulSoup
 from flask import Blueprint, render_template, request, redirect, url_for, flash
 from flask_sock import Sock
 
-from app import db
+from app import db  # Only import db, not app, to avoid circular import
 from app.models import DockerServer
 from app.forms import AddServerForm, SelectServerForm
 
@@ -207,25 +207,105 @@ def comma():
 
 
 def _handle_builtin_command(sock, data):
-    """Handle built-in shell commands (cd, pwd, clear).
+    """Handle built-in shell commands (cd, pwd, clear, ls, cat, echo, help, exit).
 
     Returns:
         True if command was handled, False otherwise.
     """
+    # Help command
+    if data in ('help', '?'):
+        sock.send(
+            """
+Available commands:
+  clear         - Clear the terminal
+  pwd           - Print working directory
+  cd            - Change directory
+  ls            - List directory contents
+  cat           - Show file contents
+  echo          - Print text
+  exit          - Close terminal session
+  help, ?       - Show this help message
+All other commands are executed inside the container.
+            """
+        )
+        return True
+
+    # Exit command
+    if data == 'exit':
+        sock.send('Session closed. Bye!')
+        try:
+            sock.close()
+        except Exception:
+            pass
+        return True
+
+    # Clear command
     if data == 'clear':
         sock.send('__CLEAR__')
         return True
 
+    # Print working directory
     if data == 'pwd':
         sock.send(session_workdir.get(sock, '/'))
         return True
 
+    # Change directory
     if data.startswith('cd '):
         target = data[3:].strip()
         current = session_workdir.get(sock, '/')
         new_dir = os.path.normpath(os.path.join(current, target))
         session_workdir[sock] = new_dir
         sock.send(f'Changed directory to {new_dir}')
+        return True
+
+    # Echo command
+    if data.startswith('echo '):
+        sock.send(data[5:].strip())
+        return True
+
+    # ls command (list directory)
+    if data.startswith('ls'):
+        # Accept 'ls' or 'ls <dir>'
+        parts = data.split(maxsplit=1)
+        target_dir = parts[1].strip() if len(parts) > 1 else session_workdir.get(sock, '/')
+        # Use Docker exec to run ls
+        try:
+            client, _ = conf()
+            container_id = request.args.get("id")
+            container = client.containers.get(container_id)
+            container.reload()
+            result = container.exec_run(
+                f'ls -al {target_dir}',
+                workdir=session_workdir.get(sock, '/'),
+                stdout=True,
+                stderr=True,
+                demux=False
+            )
+            output = _decode_output(result.output)
+            sock.send(output if output else '(empty)')
+        except Exception as e:
+            sock.send(f'ls error: {e}')
+        return True
+
+    # cat command (show file contents)
+    if data.startswith('cat '):
+        file_path = data[4:].strip()
+        try:
+            client, _ = conf()
+            container_id = request.args.get("id")
+            container = client.containers.get(container_id)
+            container.reload()
+            result = container.exec_run(
+                f'cat {file_path}',
+                workdir=session_workdir.get(sock, '/'),
+                stdout=True,
+                stderr=True,
+                demux=False
+            )
+            output = _decode_output(result.output)
+            sock.send(output if output else '(empty)')
+        except Exception as e:
+            sock.send(f'cat error: {e}')
         return True
 
     return False
