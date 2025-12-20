@@ -16,16 +16,29 @@
     border-bottom: 1px solid #3d3d3d;
   }
   .log-content {
-    padding: 1rem;
+    padding: 0.5rem;
     max-height: 70vh;
     overflow-y: auto;
     overflow-x: auto;
-    color: #00ff00;
-    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
-    font-size: 0.875rem;
-    line-height: 1.5;
+    color: #c7f9c7;
+    font-family: 'Fira Mono', 'Consolas', 'Monaco', 'Courier New', monospace;
+    font-size: 0.95rem;
+    line-height: 1.4;
+    background: #0f1720;
+  }
+  .log-line {
+    padding: 0.25rem 0.5rem;
+    margin-bottom: 0.25rem;
+    border-radius: 4px;
     white-space: pre-wrap;
-    word-wrap: break-word;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+  .log-line:nth-child(even) {
+    background-color: rgba(255, 255, 255, 0.02);
+  }
+  .log-line:nth-child(odd) {
+    background-color: rgba(255, 255, 255, 0.01);
   }
   .log-content::-webkit-scrollbar {
     width: 8px;
@@ -65,7 +78,11 @@
       </button>
     </div>
   </div>
-  <div id="logContent" class="log-content">{{ logs | replace('\n', '<br>') | trim("'") | safe }}</div>
+  <div id="logContent" class="log-content">
+    {% for line in logs.decode('utf-8').split('\n') %}
+      <div class="log-line">{{ line | e }}</div>
+    {% endfor %}
+  </div>
 </div>
 
 <script>

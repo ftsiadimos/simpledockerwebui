@@ -23,16 +23,35 @@
   .status-running { color: #198754; font-weight: 500; }
   .status-exited { color: #dc3545; }
   .status-paused { color: #ffc107; }
-  /* Action buttons row */
+  /* Action buttons row with improved grouping and colors */
   .action-buttons {
     display: flex;
-    gap: 0.5rem;
-    flex-wrap: wrap;
     justify-content: flex-start;
     margin-top: 1rem;
     padding: 1rem 0;
-    border-top: 1px solid #dee2e6;
+    border-top: 2px solid #dee2e6;
+    background: linear-gradient(90deg, #f8f9fa 0%, #e9ecef 100%);
   }
+  .btn-group-custom {
+    display: flex;
+    gap: 0.25rem;
+    flex-wrap: wrap;
+  }
+  .btn-custom {
+    border-radius: 6px !important;
+    font-weight: 600;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    transition: all 0.2s ease;
+    padding: 0.5rem 1rem;
+  }
+  .btn-custom:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+  }
+  .btn-start { background: linear-gradient(45deg, #28a745, #20c997); border-color: #28a745; color: white; }
+  .btn-stop { background: linear-gradient(45deg, #ffc107, #fd7e14); border-color: #ffc107; color: white; }
+  .btn-restart { background: linear-gradient(45deg, #17a2b8, #6f42c1); border-color: #17a2b8; color: white; }
+  .btn-delete { background: linear-gradient(45deg, #dc3545, #e83e8c); border-color: #dc3545; color: white; }
   /* Responsive adjustments */
   @media (max-width: 992px) {
     .wrap-cell .ellipsis { max-width: 120px; }
@@ -60,20 +79,22 @@
     <form action="{{ url_for('main.submit_remove') }}" method="post" id="containerForm">
       <!-- Action Buttons -->
       {% if doc %}
-      <div class="action-buttons px-3 py-2 bg-light border-bottom">
-        <button type="submit" name="submit_button" value="Start" class="btn btn-success btn-sm">
-          <i class="fa fa-play" aria-hidden="true"></i> Start
-        </button>
-        <button type="submit" name="submit_button" value="Stop" class="btn btn-warning btn-sm">
-          <i class="fa fa-stop" aria-hidden="true"></i> Stop
-        </button>
-        <button type="submit" name="submit_button" value="Restart" class="btn btn-info btn-sm">
-          <i class="fa fa-refresh" aria-hidden="true"></i> Restart
-        </button>
-        <button type="submit" name="submit_button" value="Delete" class="btn btn-danger btn-sm"
-                onclick="return confirm('Are you sure you want to delete the selected container(s)?');">
-          <i class="fa fa-trash" aria-hidden="true"></i> Delete
-        </button>
+      <div class="action-buttons px-3 py-2">
+        <div class="btn-group-custom">
+          <button type="submit" name="submit_button" value="Start" class="btn btn-custom btn-start btn-sm">
+            <i class="fa fa-play" aria-hidden="true"></i> Start
+          </button>
+          <button type="submit" name="submit_button" value="Stop" class="btn btn-custom btn-stop btn-sm">
+            <i class="fa fa-stop" aria-hidden="true"></i> Stop
+          </button>
+          <button type="submit" name="submit_button" value="Restart" class="btn btn-custom btn-restart btn-sm">
+            <i class="fa fa-refresh" aria-hidden="true"></i> Restart
+          </button>
+          <button type="submit" name="submit_button" value="Delete" class="btn btn-custom btn-delete btn-sm"
+                  onclick="return confirm('Are you sure you want to delete the selected container(s)?');">
+            <i class="fa fa-trash" aria-hidden="true"></i> Delete
+          </button>
+        </div>
       </div>
       {% endif %}
       <div class="table-responsive">
