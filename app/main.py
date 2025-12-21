@@ -4,8 +4,12 @@ from weakref import WeakKeyDictionary
 
 import docker
 from bs4 import BeautifulSoup
-from flask import Blueprint, render_template, request, redirect, url_for, flash
+from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from flask_sock import Sock
+import requests
+import logging
+
+log = logging.getLogger(__name__)
 
 from app import db  # Only import db, not app, to avoid circular import
 from app.models import DockerServer
@@ -27,6 +31,46 @@ session_workdir = WeakKeyDictionary()
 
 # Cache for Docker client to avoid reconnecting on every request
 _docker_client_cache = {}
+
+# In-memory cache for reachable container URLs: container.id -> (url_or_None, timestamp)
+_REACHABLE_CACHE = {}
+
+# Defaults for reachability checks
+REACHABLE_TTL = 30.0  # seconds
+CHECK_TIMEOUT_DEFAULT = 0.45
+MAX_WORKERS_DEFAULT = 10
+
+# Thread pool for background reachability checks
+from concurrent.futures import ThreadPoolExecutor
+_REACH_CHECKER = ThreadPoolExecutor(max_workers=MAX_WORKERS_DEFAULT)
+
+import time
+
+
+def check_http(host, port, timeout=CHECK_TIMEOUT_DEFAULT):
+    url = f"http://{host}:{port}/"
+    try:
+        r = requests.head(url, timeout=timeout, allow_redirects=True)
+        if r.status_code < 400:
+            return url
+        r = requests.get(url, timeout=timeout, allow_redirects=True)
+        if r.status_code < 400:
+            return url
+    except requests.RequestException:
+        return None
+    return None
+
+
+def check_http_and_cache(cid, host, port, timeout=CHECK_TIMEOUT_DEFAULT):
+    try:
+        url = check_http(host, port, timeout=timeout)
+        _REACHABLE_CACHE[cid] = (url, time.time())
+        return url
+    except Exception:
+        log.exception("check_http_and_cache failed for %s:%s", host, port)
+        # Ensure we still cache the negative result to avoid repeated failures
+        _REACHABLE_CACHE[cid] = (None, time.time())
+        return None
 
 
 def get_docker_base_url():
@@ -76,12 +120,157 @@ def conf(use_cache=True):
 def index():
     """Display the main dashboard with all containers."""
     try:
+        t0 = time.time()
         client, serverurl = conf()
-        doc = client.containers.list(all=True)
-        return render_template('index.html', doc=doc, serverurl=serverurl)
+        t1 = time.time()
+        raw_containers = client.containers.list(all=True)
+        t2 = time.time()
+
+        # Map container.id -> reachable http url if any
+        reachable = {}
+        host_fallback = getattr(serverurl, 'host', None) or 'localhost'
+
+        # Build lightweight container summaries
+        containers = []
+        for c in raw_containers:
+            try:
+                image_name = c.attrs.get('Config', {}).get('Image', '') if getattr(c, 'attrs', None) else ''
+            except Exception:
+                image_name = ''
+            containers.append({
+                'id': c.id,
+                'name': getattr(c, 'name', '') or '',
+                'status': getattr(c, 'status', '') or '',
+                'ports': getattr(c, 'ports', {}) or {},
+                'image': image_name,
+            })
+        t3 = time.time()
+
+        # Fill reachable from cache only (fast)
+        now = time.time()
+        cached = 0
+        for c in containers:
+            entry = _REACHABLE_CACHE.get(c['id'])
+            if entry:
+                url, ts = entry
+                if now - ts <= REACHABLE_TTL and url:
+                    reachable[c['id']] = url
+                    cached += 1
+        t4 = time.time()
+
+        # Schedule background reachability checks for containers missing a fresh cache
+        prefer_ports = [80, 443, 8080, 8000, 3000]
+        def _bg_check(cid, host, candidates):
+            for p in candidates[:6]:
+                url = check_http_and_cache(cid, host, p)
+                if url:
+                    break
+
+        tasks_submitted = 0
+        for c in containers:
+            if c['id'] in reachable:
+                continue
+            ports_map = c.get('ports') or {}
+            candidates = []
+            for internal, hostports in ports_map.items():
+                if not hostports:
+                    continue
+                for info in hostports:
+                    hp = info.get('HostPort')
+                    if not hp:
+                        continue
+                    try:
+                        candidates.append(int(hp))
+                    except Exception:
+                        continue
+            if not candidates:
+                continue
+            candidates = sorted(candidates, key=lambda x: (0 if x in prefer_ports else 1, prefer_ports.index(x) if x in prefer_ports else x))
+            try:
+                _REACH_CHECKER.submit(_bg_check, c['id'], host_fallback, candidates)
+                tasks_submitted += 1
+            except Exception:
+                pass
+        t5 = time.time()
+
+        log.info("index timings: conf=%.3fs list=%.3fs build=%.3fs cache=%.3fs bgtasks=%.3fs (submitted=%d)",
+                 t1-t0, t2-t1, t3-t2, t4-t3, t5-t4, tasks_submitted)
+
+        return render_template('index.html', containers=containers, serverurl=serverurl, reachable=reachable)
     except ValueError as err:
         flash(str(err), 'warning')
         return redirect(url_for('main.addcon'))
+
+
+@main_bp.route('/api/reachable/<container_id>', methods=['GET'])
+def api_reachable(container_id):
+    """Return cached reachable URL for a container, and schedule a background
+    discovery+check if not present. This endpoint is intentionally non-blocking
+    and will not perform Docker network calls on the request path."""
+    entry = _REACHABLE_CACHE.get(container_id)
+    now = time.time()
+    if entry and now - entry[1] <= REACHABLE_TTL and entry[0]:
+        return jsonify({'reachable': entry[0], 'cached': True})
+
+    # Schedule background discovery and checks
+    def _bg_discover_and_check(cid):
+        try:
+            client, serverurl = conf()
+            c = client.containers.get(cid)
+            ports_map = getattr(c, 'ports', {}) or {}
+            candidates = []
+            for internal, hostports in ports_map.items():
+                if not hostports:
+                    continue
+                for info in hostports:
+                    hp = info.get('HostPort')
+                    if not hp:
+                        continue
+                    try:
+                        candidates.append(int(hp))
+                    except Exception:
+                        continue
+            if candidates:
+                prefer_ports = [80, 443, 8080, 8000, 3000]
+                candidates = sorted(candidates, key=lambda x: (0 if x in prefer_ports else 1, prefer_ports.index(x) if x in prefer_ports else x))
+                for p in candidates[:6]:
+                    url = check_http_and_cache(cid, serverurl.host or 'localhost', p)
+                    if url:
+                        break
+        except Exception:
+            log.exception('bg discover failed for %s', cid)
+
+    try:
+        _REACH_CHECKER.submit(_bg_discover_and_check, container_id)
+    except Exception:
+        pass
+
+    return jsonify({'reachable': None, 'cached': False, 'scheduled': True})
+
+
+@main_bp.route('/api/reachable/probe', methods=['POST'])
+def api_reachable_probe():
+    """Synchronously probe a host and a list of ports. This is intended for
+    client-initiated progressive checks and uses a short timeout by default."""
+    data = request.get_json(force=True, silent=True) or {}
+    host = data.get('host')
+    ports = data.get('ports') or []
+    try:
+        timeout = float(data.get('timeout', CHECK_TIMEOUT_DEFAULT))
+    except Exception:
+        timeout = CHECK_TIMEOUT_DEFAULT
+
+    if not host or not ports:
+        return jsonify({'reachable': None}), 400
+
+    prefer_ports = [80, 443, 8080, 8000, 3000]
+    candidates = sorted([int(p) for p in ports], key=lambda x: (0 if x in prefer_ports else 1, prefer_ports.index(x) if x in prefer_ports else x))
+    for p in candidates[:6]:
+        url = check_http(host, p, timeout=timeout)
+        if url:
+            return jsonify({'reachable': url})
+
+    return jsonify({'reachable': None}), 404
 
 
 @main_bp.route('/about', methods=['GET'])
@@ -172,11 +361,33 @@ def logs():
         return redirect(url_for('main.index'))
 
     try:
+        t0 = time.time()
         client, _ = conf()
+        t1 = time.time()
         container = client.containers.get(container_id)
+        t2 = time.time()
         # Get last 1000 lines to avoid memory issues with large logs
         log_output = container.logs(tail=1000, timestamps=True)
-        return render_template('logs.html', logs=log_output)
+        t3 = time.time()
+
+        # Ensure we work with a decoded string in templates
+        try:
+            if isinstance(log_output, (bytes, bytearray)):
+                logs_text = log_output.decode('utf-8', errors='replace')
+            else:
+                logs_text = str(log_output)
+        except Exception as e:
+            logs_text = ''
+            log.exception('Failed to decode logs for %s', container_id)
+        t4 = time.time()
+
+        # Log timings and size
+        lines = len(logs_text.splitlines())
+        log.info("logs: container=%s lines=%d timings: conf=%.3fs get=%.3fs fetch=%.3fs decode=%.3fs",
+                 container_id, lines, t1-t0, t2-t1, t3-t2, t4-t3)
+
+        return render_template('logs.html', logs_text=logs_text)
+
     except docker.errors.NotFound:
         flash(f'Container {container_id} not found.', 'danger')
         return redirect(url_for('main.index'))

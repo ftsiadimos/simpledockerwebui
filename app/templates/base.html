@@ -94,6 +94,31 @@
         </small>
       </div>
     </footer>
+
+    <!-- Auto-refresh on mobile rotation -->
+    <script>
+      (function(){
+        // Only enable on mobile devices
+        if (!/Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) return;
+        let last = (window.innerWidth > window.innerHeight) ? 'landscape' : 'portrait';
+        let timeout = null;
+        function handleChange(){
+          const now = (window.innerWidth > window.innerHeight) ? 'landscape' : 'portrait';
+          if (now === last) return; // no real orientation change
+          last = now;
+          clearTimeout(timeout);
+          timeout = setTimeout(function(){
+            try { sessionStorage.setItem('orientation_reloaded', '1'); } catch(e){}
+            // Use replace to avoid polluting history
+            location.replace(location.href);
+          }, 250);
+        }
+        window.addEventListener('orientationchange', handleChange, false);
+        window.addEventListener('resize', handleChange, false);
+        // Clean the flag on fresh load
+        try { sessionStorage.removeItem('orientation_reloaded'); } catch(e){}
+      })();
+    </script>
   </body>
 </html>
 

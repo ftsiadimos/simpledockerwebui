@@ -269,6 +269,21 @@ export FLASK_DEBUG=1
 flask run --host=0.0.0.0 --port=8008
 ```
 
+### Production deployment tips ⚙️
+
+For production use we recommend running Gunicorn with the threaded worker class and a higher timeout to avoid workers being killed during occasional slow operations. Example command:
+
+```bash
+# Example Gunicorn command (used in Dockerfile / docker-compose)
+/usr/local/bin/gunicorn -b :8008 -k gthread --workers 3 --threads 4 --timeout 120 start:app
+```
+
+Also ensure the Docker Python SDK is available in the environment where the app runs (needed to talk to Docker):
+
+```bash
+pip install docker
+```
+
 ### Tech Stack
 
 - **Backend**: Flask 3.x, Flask-SQLAlchemy, Flask-Sock

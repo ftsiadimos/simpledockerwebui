@@ -376,7 +376,34 @@ pre code {
   white-space: normal;      /* allow wrapping */
 }
 
-/* Make the whole page a flex column that fills the viewport */
+/* Table responsive improvements for mobile rotation */
+.table-responsive {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch; /* smoother scrolling on iOS */
+}
+
+/* Prevent cards from stretching to full viewport height to avoid large empty frames */
+.card, .container .card {
+  height: auto !important;
+}
+.card-body {
+  height: auto !important;
+  overflow: visible;
+}
+
+/* Landscape mobile: reduce padding and make table horizontally scrollable; show as many columns as possible */
+@media (max-width: 812px) and (orientation: landscape) {
+  table th, table td { padding: 6px; font-size: 13px; white-space: nowrap; }
+  .table-responsive { max-height: calc(100vh - 120px); overflow-y: auto; }
+}
+
+/* Small screens portrait: compact rows */
+@media (max-width: 576px) {
+  table th, table td { padding: 6px; font-size: 13px; }
+  .action-buttons { padding: 0.5rem; gap: 0.25rem; }
+}
+
+/* Let the whole page a flex column that fills the viewport */
 html, body {
   height: 100%;
   margin: 0;

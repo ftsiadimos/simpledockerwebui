@@ -33,6 +33,9 @@
     white-space: pre-wrap;
     overflow-wrap: anywhere;
     word-break: break-word;
+    display: flex;
+    gap: 0.75rem;
+    align-items: flex-start;
   }
   .log-line:nth-child(even) {
     background-color: rgba(255, 255, 255, 0.02);
@@ -40,6 +43,11 @@
   .log-line:nth-child(odd) {
     background-color: rgba(255, 255, 255, 0.01);
   }
+  .lnum { color: #6c757d; min-width: 3ch; text-align: right; }
+  .level-error { color: #ff6b6b; font-weight: 700; }
+  .level-warn { color: #ffd166; font-weight: 700; }
+  .level-info { color: #74c0fc; }
+  .level-debug { color: #adb5bd; }
   .log-content::-webkit-scrollbar {
     width: 8px;
     height: 8px;
@@ -73,14 +81,20 @@
       <button type="button" id="scrollBottomBtn" class="btn btn-outline-light btn-log-control" title="Scroll to bottom">
         <i class="fa fa-arrow-down" aria-hidden="true"></i> Bottom
       </button>
+      <button type="button" id="toggleAutoScrollBtn" class="btn btn-outline-light btn-log-control" title="Toggle auto-scroll">
+        <i class="fa fa-arrows-v" aria-hidden="true"></i> Auto
+      </button>
+      <button type="button" id="downloadBtn" class="btn btn-outline-success btn-log-control" title="Download logs">
+        <i class="fa fa-download" aria-hidden="true"></i> Download
+      </button>
       <button type="button" id="goBackBtn" class="btn btn-outline-warning btn-log-control" title="Go back">
         <i class="fa fa-arrow-left" aria-hidden="true"></i> Back
       </button>
     </div>
   </div>
   <div id="logContent" class="log-content">
-    {% for line in logs.decode('utf-8').split('\n') %}
-      <div class="log-line">{{ line | e }}</div>
+    {% for line in logs_text.split('\n') %}
+      <div class="log-line"><span class="lnum">{{ loop.index }}</span><span class="ltext">{{ line | e }}</span></div>
     {% endfor %}
   </div>
 </div>
@@ -104,6 +118,46 @@
 
   document.getElementById('goBackBtn').addEventListener('click', () => {
     window.history.back();
+  });
+
+  // Auto-scroll toggle
+  let autoScroll = true;
+  const toggleBtn = document.getElementById('toggleAutoScrollBtn');
+  toggleBtn.addEventListener('click', () => {
+    autoScroll = !autoScroll;
+    toggleBtn.classList.toggle('active', autoScroll);
+    if (autoScroll) logEl.scrollTop = logEl.scrollHeight;
+  });
+
+  // Download logs
+  document.getElementById('downloadBtn').addEventListener('click', () => {
+    const text = Array.from(document.querySelectorAll('.ltext')).map(e => e.textContent).join('\n');
+    const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'container-logs.txt';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  });
+
+  // Highlight levels
+  (function colorize(){
+    const lines = document.querySelectorAll('.log-line');
+    lines.forEach(l => {
+      const txt = l.querySelector('.ltext').textContent || '';
+      if (/\bERROR\b/i.test(txt)) l.classList.add('level-error');
+      else if (/\bWARN|WARNING\b/i.test(txt)) l.classList.add('level-warn');
+      else if (/\bINFO\b/i.test(txt)) l.classList.add('level-info');
+      else if (/\bDEBUG\b/i.test(txt)) l.classList.add('level-debug');
+    });
+  })();
+
+  // Ensure auto-scroll on load
+  window.addEventListener('load', () => {
+    if (autoScroll) logEl.scrollTop = logEl.scrollHeight;
   });
 </script>
 {% endblock %}

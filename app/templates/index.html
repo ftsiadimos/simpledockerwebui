@@ -60,25 +60,41 @@
     .wrap-cell .ellipsis { max-width: 80px; }
     .action-buttons { justify-content: center; }
   }
-</style>
+/* --- Custom search styling --- */
+  .dt-search-wrapper { border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+  .dt-search-wrapper { display:flex; align-items:center; gap:0.5rem; }
+  .dt-search-wrapper .input-group-text { background: #fff; border-right: 1px solid rgba(0,0,0,0.06); }
+  #tableSearch { background: linear-gradient(90deg, #ffffff, #f6f9ff); border: none; }
+  #tableSearch::placeholder { color: #8fa6c1; opacity: 1; }
+
+  /* Make DataTables length control compact */
+  .dataTables_length { margin-left: 8px; }
+  .dataTables_length select { height: 32px; padding: 4px 8px; border-radius: 6px; border: 1px solid rgba(0,0,0,0.08); }
+  .dt-length-inline select { margin-right: 6px; }
+
+  @media (max-width: 576px) {
+    .dt-search-wrapper { max-width: 180px !important; }
+    .dataTables_length { display: none; } /* hide on tiny screens to save space */
+  }
+  </style>
 
 <div class="card shadow-sm">
   <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
     <h5 class="mb-0"><i class="fa fa-docker" aria-hidden="true"></i> Containers</h5>
     <div class="d-flex align-items-center gap-2">
-      {% if serverurl %}
-      <small class="text-white-50">
-        <i class="fa fa-server" aria-hidden="true"></i>
-        {{ serverurl.display_name if serverurl.display_name else 'Local' }}
-      </small>
-      {% endif %}
-      <span class="badge bg-light text-dark">{{ doc|length }} total</span>
+      <!-- Custom search for containers -->
+      <div class="input-group input-group-sm dt-search-wrapper" style="max-width:420px;">
+
+        <input id="tableSearch" type="search" class="form-control form-control-sm border-0" placeholder="Search containers..." aria-label="Search containers">
+      </div>
+
+
     </div>
   </div>
   <div class="card-body p-0">
     <form action="{{ url_for('main.submit_remove') }}" method="post" id="containerForm">
       <!-- Action Buttons -->
-      {% if doc %}
+      {% if containers %}
       <div class="action-buttons px-3 py-2">
         <div class="btn-group-custom">
           <button type="submit" name="submit_button" value="Start" class="btn btn-custom btn-start btn-sm">
@@ -113,17 +129,32 @@
             </tr>
           </thead>
           <tbody>
-            {% for container in doc %}
+            {% for container in containers %}
             <tr>
               <td>
                 <input type="checkbox" name="interests" value="{{ container.id }}" 
                        aria-label="Select {{ container.name }}">
               </td>
               <td class="wrap-cell">
-                <span class="ellipsis" title="{{ container.name }}">{{ container.name }}</span>
+                {% set url = reachable.get(container.id) %}
+                {# Build a comma-separated host port list for progressive client probing #}
+                {% set ports_str = '' %}
+                {% for internal, host_ports in container.ports.items() %}
+                  {% if host_ports %}
+                    {% for hp in host_ports %}
+                      {% if ports_str %}{% set ports_str = ports_str + ',' + (hp.get('HostPort') or '') %}{% else %}{% set ports_str = (hp.get('HostPort') or '') %}{% endif %}
+                    {% endfor %}
+                  {% endif %}
+                {% endfor %}
+
+                {% if url %}
+                  <a class="ellipsis text-decoration-none" href="{{ url }}" target="_blank" rel="noopener noreferrer" title="Open {{ container.name }}">{{ container.name }}</a>
+                {% else %}
+                  <span class="ellipsis container-name" data-container-id="{{ container.id }}" data-hostports="{{ ports_str }}" title="{{ container.name }}">{{ container.name }}</span>
+                {% endif %}
               </td>
               <td class="wrap-cell d-none d-md-table-cell">
-                {% set image_name = container.attrs['Config']['Image'] %}
+                {% set image_name = container.image %}
                 <span class="ellipsis" title="{{ image_name }}">{{ image_name }}</span>
               </td>
               <td class="wrap-cell">
@@ -143,7 +174,7 @@
                   {% if host_ports %}
                     {% for host_port_info in host_ports %}
                       {% set host_port = host_port_info.get('HostPort') %}
-                      <a href="http://{{ serverurl.name if serverurl and serverurl.name else 'localhost' }}:{{ host_port }}" 
+                      <a href="http://{{ serverurl.host if serverurl and serverurl.host else 'localhost' }}:{{ host_port }}" 
                          target="_blank" 
                          class="badge bg-secondary text-decoration-none"
                          title="{{ internal_port }} → {{ host_port }}">
@@ -190,23 +221,102 @@
 <script>
   document.addEventListener('DOMContentLoaded', function() {
     // Initialize DataTable
-    $('#containersTable').DataTable({
+    var dt = $('#containersTable').DataTable({
       stateSave: true,
       order: [[1, 'asc']],
+      dom: 'lrtip', // include length (rows-per-page) control, remove built-in search box
       columnDefs: [
         { targets: [0, 5, 6], orderable: false, searchable: false }
       ],
       language: {
-        search: 'Filter:',
         emptyTable: 'No containers available'
-      }
+      },
+      lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, 'All']],
+      pageLength: 10
     });
+
+    // Custom table search with debounce
+    var searchInput = document.getElementById('tableSearch');
+    var searchTimeout = null;
+    searchInput.addEventListener('input', function(e){
+      clearTimeout(searchTimeout);
+      var val = e.target.value;
+      searchTimeout = setTimeout(function(){ dt.search(val).draw(); }, 250);
+    });
+
+    // Move the DataTables length control next to the search input for better UX
+    (function moveLengthControl(){
+      var lengthDiv = document.querySelector('.dataTables_length');
+      var wrapper = document.querySelector('.dt-search-wrapper');
+      if (!lengthDiv || !wrapper) return;
+      var sel = lengthDiv.querySelector('select');
+      if (!sel) return;
+
+      // Build inline container
+      var inline = document.createElement('div');
+      inline.className = 'dt-length-inline d-flex align-items-center';
+      var lab = document.createElement('span');
+      lab.className = 'small text-muted me-2 d-none d-sm-inline';
+      lab.textContent = 'Rows:';
+
+      // style select
+      sel.classList.add('form-select', 'form-select-sm');
+      sel.style.height = '32px';
+      sel.style.minWidth = '72px';
+
+      inline.appendChild(lab);
+      inline.appendChild(sel);
+
+      wrapper.appendChild(inline);
+      // Hide the original label container
+      lengthDiv.style.display = 'none';
+    })();
 
     // Select all checkbox
     document.getElementById('selectAll').addEventListener('change', function() {
       const checkboxes = document.querySelectorAll('input[name="interests"]');
       checkboxes.forEach(cb => cb.checked = this.checked);
     });
+
+    // Progressive client-side reachability probe for container names that were not
+    // determined on the server. Uses a short timeout and updates the UI when a
+    // reachable URL is found.
+    (function progressiveReachChecks(){
+      var serverHost = "{{ serverurl.host if serverurl and serverurl.host else 'localhost' }}";
+      var elems = document.querySelectorAll('.container-name');
+      elems.forEach(function(el){
+        var ports = (el.dataset.hostports || '').split(',').filter(Boolean).map(function(p){ return parseInt(p,10); }).filter(Boolean);
+        if (!ports.length) return;
+        // show small spinner
+        var original = el.textContent;
+        el.innerHTML = original + ' <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>';
+
+        fetch('/api/reachable/probe', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ host: serverHost, ports: ports, timeout: 0.5 })
+        }).then(function(resp){
+          if (!resp.ok) throw new Error('not ok');
+          return resp.json();
+        }).then(function(data){
+          if (data && data.reachable){
+            var a = document.createElement('a');
+            a.href = data.reachable;
+            a.target = '_blank';
+            a.rel = 'noopener noreferrer';
+            a.className = 'ellipsis text-decoration-none';
+            a.title = el.title || original;
+            a.textContent = original;
+            el.replaceWith(a);
+          } else {
+            // restore original text
+            el.textContent = original;
+          }
+        }).catch(function(){
+          el.textContent = original;
+        });
+      });
+    })();
   });
 </script>
 {% endblock %}
