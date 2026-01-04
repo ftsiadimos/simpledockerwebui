@@ -75,6 +75,7 @@
   @media (max-width: 576px) {
     .dt-search-wrapper { max-width: 180px !important; }
     .dataTables_length { display: none; } /* hide on tiny screens to save space */
+    .card-header label { display: none; }
   }
   </style>
 
@@ -82,6 +83,13 @@
   <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
     <h5 class="mb-0"><i class="fa fa-docker" aria-hidden="true"></i> Containers</h5>
     <div class="d-flex align-items-center gap-2">
+      {% if select_form.server.choices %}
+      <form action="{{ url_for('main.index') }}" method="post" class="d-flex align-items-center gap-2">
+        {{ select_form.hidden_tag() }}
+        <label for="server" class="text-white-50 mb-0 me-1"><i class="fa fa-server" aria-hidden="true"></i></label>
+        {{ select_form.server(class="form-select form-select-sm", id="server", onchange="this.form.submit()") }}
+      </form>
+      {% endif %}
       <!-- Custom search for containers -->
       <div class="input-group input-group-sm dt-search-wrapper" style="max-width:420px;">
 
@@ -136,22 +144,7 @@
                        aria-label="Select {{ container.name }}">
               </td>
               <td class="wrap-cell">
-                {% set url = reachable.get(container.id) %}
-                {# Build a comma-separated host port list for progressive client probing #}
-                {% set ports_str = '' %}
-                {% for internal, host_ports in container.ports.items() %}
-                  {% if host_ports %}
-                    {% for hp in host_ports %}
-                      {% if ports_str %}{% set ports_str = ports_str + ',' + (hp.get('HostPort') or '') %}{% else %}{% set ports_str = (hp.get('HostPort') or '') %}{% endif %}
-                    {% endfor %}
-                  {% endif %}
-                {% endfor %}
-
-                {% if url %}
-                  <a class="ellipsis text-decoration-none" href="{{ url }}" target="_blank" rel="noopener noreferrer" title="Open {{ container.name }}">{{ container.name }}</a>
-                {% else %}
-                  <span class="ellipsis container-name" data-container-id="{{ container.id }}" data-hostports="{{ ports_str }}" title="{{ container.name }}">{{ container.name }}</span>
-                {% endif %}
+                <span class="ellipsis" title="{{ container.name }}">{{ container.name }}</span>
               </td>
               <td class="wrap-cell d-none d-md-table-cell">
                 {% set image_name = container.image %}
@@ -232,7 +225,7 @@
         emptyTable: 'No containers available'
       },
       lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, 'All']],
-      pageLength: 10
+      pageLength: 25
     });
 
     // Custom table search with debounce
@@ -277,46 +270,6 @@
       const checkboxes = document.querySelectorAll('input[name="interests"]');
       checkboxes.forEach(cb => cb.checked = this.checked);
     });
-
-    // Progressive client-side reachability probe for container names that were not
-    // determined on the server. Uses a short timeout and updates the UI when a
-    // reachable URL is found.
-    (function progressiveReachChecks(){
-      var serverHost = "{{ serverurl.host if serverurl and serverurl.host else 'localhost' }}";
-      var elems = document.querySelectorAll('.container-name');
-      elems.forEach(function(el){
-        var ports = (el.dataset.hostports || '').split(',').filter(Boolean).map(function(p){ return parseInt(p,10); }).filter(Boolean);
-        if (!ports.length) return;
-        // show small spinner
-        var original = el.textContent;
-        el.innerHTML = original + ' <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>';
-
-        fetch('/api/reachable/probe', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ host: serverHost, ports: ports, timeout: 0.5 })
-        }).then(function(resp){
-          if (!resp.ok) throw new Error('not ok');
-          return resp.json();
-        }).then(function(data){
-          if (data && data.reachable){
-            var a = document.createElement('a');
-            a.href = data.reachable;
-            a.target = '_blank';
-            a.rel = 'noopener noreferrer';
-            a.className = 'ellipsis text-decoration-none';
-            a.title = el.title || original;
-            a.textContent = original;
-            el.replaceWith(a);
-          } else {
-            // restore original text
-            el.textContent = original;
-          }
-        }).catch(function(){
-          el.textContent = original;
-        });
-      });
-    })();
   });
 </script>
 {% endblock %}

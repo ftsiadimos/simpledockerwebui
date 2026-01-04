@@ -4,9 +4,8 @@ from weakref import WeakKeyDictionary
 
 import docker
 from bs4 import BeautifulSoup
-from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
+from flask import Blueprint, render_template, request, redirect, url_for, flash
 from flask_sock import Sock
-import requests
 import logging
 
 log = logging.getLogger(__name__)
@@ -32,45 +31,7 @@ session_workdir = WeakKeyDictionary()
 # Cache for Docker client to avoid reconnecting on every request
 _docker_client_cache = {}
 
-# In-memory cache for reachable container URLs: container.id -> (url_or_None, timestamp)
-_REACHABLE_CACHE = {}
-
-# Defaults for reachability checks
-REACHABLE_TTL = 30.0  # seconds
-CHECK_TIMEOUT_DEFAULT = 0.45
-MAX_WORKERS_DEFAULT = 10
-
-# Thread pool for background reachability checks
-from concurrent.futures import ThreadPoolExecutor
-_REACH_CHECKER = ThreadPoolExecutor(max_workers=MAX_WORKERS_DEFAULT)
-
 import time
-
-
-def check_http(host, port, timeout=CHECK_TIMEOUT_DEFAULT):
-    url = f"http://{host}:{port}/"
-    try:
-        r = requests.head(url, timeout=timeout, allow_redirects=True)
-        if r.status_code < 400:
-            return url
-        r = requests.get(url, timeout=timeout, allow_redirects=True)
-        if r.status_code < 400:
-            return url
-    except requests.RequestException:
-        return None
-    return None
-
-
-def check_http_and_cache(cid, host, port, timeout=CHECK_TIMEOUT_DEFAULT):
-    try:
-        url = check_http(host, port, timeout=timeout)
-        _REACHABLE_CACHE[cid] = (url, time.time())
-        return url
-    except Exception:
-        log.exception("check_http_and_cache failed for %s:%s", host, port)
-        # Ensure we still cache the negative result to avoid repeated failures
-        _REACHABLE_CACHE[cid] = (None, time.time())
-        return None
 
 
 def get_docker_base_url():
@@ -116,19 +77,65 @@ def conf(use_cache=True):
 
     return client, serverurl
 
-@main_bp.route('/', methods=['GET'])
+@main_bp.route('/', methods=['GET', 'POST'])
 def index():
     """Display the main dashboard with all containers."""
-    try:
-        t0 = time.time()
-        client, serverurl = conf()
-        t1 = time.time()
-        raw_containers = client.containers.list(all=True)
-        t2 = time.time()
+    select_form = SelectServerForm()
+    servers = DockerServer.query.all()
+    active_server = DockerServer.get_active()
+    
+    def get_server_label(s):
+        if s.host and s.port:
+            return f"{s.display_name} (tcp://{s.host}:{s.port})"
+        elif s.host:
+            return f"{s.display_name} ({s.host})"
+        return f"{s.display_name} (local)"
+    
+    select_form.server.choices = [(s.id, get_server_label(s)) for s in servers]
+    
+    if request.method == 'POST' and 'server' in request.form:
+        server_id = None
+        if select_form.validate_on_submit():
+            server_id = select_form.server.data
+        else:
+            # Fallback: sometimes client-side submits may not validate due to CSRF or choice mismatch.
+            raw = request.form.get('server')
+            try:
+                server_id = int(raw) if raw is not None else None
+            except (TypeError, ValueError):
+                server_id = None
+            log.warning("Server selection did not validate; fallback parsing server=%r -> %r", raw, server_id)
 
-        # Map container.id -> reachable http url if any
-        reachable = {}
-        host_fallback = getattr(serverurl, 'host', None) or 'localhost'
+        if server_id is None:
+            flash('Invalid server selection.', 'danger')
+            return redirect(url_for('main.index'))
+
+        server = DockerServer.query.get(server_id)
+        if server:
+            base_url = f"tcp://{server.host}:{server.port}" if server.is_configured else 'unix://var/run/docker.sock'
+            try:
+                client = docker.DockerClient(base_url=base_url, timeout=10)
+                client.ping()
+                # Success, set active
+                DockerServer.set_active(server_id)
+                _docker_client_cache.clear()
+                flash(f'Connected to "{server.display_name}".', 'success')
+            except docker.errors.DockerException as exc:
+                flash(f"Cannot connect to Docker at {base_url}: {exc}", 'warning')
+                # Don't set active
+        return redirect(url_for('main.index'))
+    
+    # Ensure there's an active server
+    if not active_server and servers:
+        active_server = servers[0]
+        DockerServer.set_active(active_server.id)
+    
+    if active_server:
+        select_form.server.data = active_server.id
+    
+    try:
+        client, serverurl = conf()
+        raw_containers = client.containers.list(all=True)
 
         # Build lightweight container summaries
         containers = []
@@ -144,133 +151,13 @@ def index():
                 'ports': getattr(c, 'ports', {}) or {},
                 'image': image_name,
             })
-        t3 = time.time()
 
-        # Fill reachable from cache only (fast)
-        now = time.time()
-        cached = 0
-        for c in containers:
-            entry = _REACHABLE_CACHE.get(c['id'])
-            if entry:
-                url, ts = entry
-                if now - ts <= REACHABLE_TTL and url:
-                    reachable[c['id']] = url
-                    cached += 1
-        t4 = time.time()
-
-        # Schedule background reachability checks for containers missing a fresh cache
-        prefer_ports = [80, 443, 8080, 8000, 3000]
-        def _bg_check(cid, host, candidates):
-            for p in candidates[:6]:
-                url = check_http_and_cache(cid, host, p)
-                if url:
-                    break
-
-        tasks_submitted = 0
-        for c in containers:
-            if c['id'] in reachable:
-                continue
-            ports_map = c.get('ports') or {}
-            candidates = []
-            for internal, hostports in ports_map.items():
-                if not hostports:
-                    continue
-                for info in hostports:
-                    hp = info.get('HostPort')
-                    if not hp:
-                        continue
-                    try:
-                        candidates.append(int(hp))
-                    except Exception:
-                        continue
-            if not candidates:
-                continue
-            candidates = sorted(candidates, key=lambda x: (0 if x in prefer_ports else 1, prefer_ports.index(x) if x in prefer_ports else x))
-            try:
-                _REACH_CHECKER.submit(_bg_check, c['id'], host_fallback, candidates)
-                tasks_submitted += 1
-            except Exception:
-                pass
-        t5 = time.time()
-
-        log.info("index timings: conf=%.3fs list=%.3fs build=%.3fs cache=%.3fs bgtasks=%.3fs (submitted=%d)",
-                 t1-t0, t2-t1, t3-t2, t4-t3, t5-t4, tasks_submitted)
-
-        return render_template('index.html', containers=containers, serverurl=serverurl, reachable=reachable)
+        return render_template('index.html', containers=containers, serverurl=serverurl, select_form=select_form)
     except ValueError as err:
         flash(str(err), 'warning')
-        return redirect(url_for('main.addcon'))
-
-
-@main_bp.route('/api/reachable/<container_id>', methods=['GET'])
-def api_reachable(container_id):
-    """Return cached reachable URL for a container, and schedule a background
-    discovery+check if not present. This endpoint is intentionally non-blocking
-    and will not perform Docker network calls on the request path."""
-    entry = _REACHABLE_CACHE.get(container_id)
-    now = time.time()
-    if entry and now - entry[1] <= REACHABLE_TTL and entry[0]:
-        return jsonify({'reachable': entry[0], 'cached': True})
-
-    # Schedule background discovery and checks
-    def _bg_discover_and_check(cid):
-        try:
-            client, serverurl = conf()
-            c = client.containers.get(cid)
-            ports_map = getattr(c, 'ports', {}) or {}
-            candidates = []
-            for internal, hostports in ports_map.items():
-                if not hostports:
-                    continue
-                for info in hostports:
-                    hp = info.get('HostPort')
-                    if not hp:
-                        continue
-                    try:
-                        candidates.append(int(hp))
-                    except Exception:
-                        continue
-            if candidates:
-                prefer_ports = [80, 443, 8080, 8000, 3000]
-                candidates = sorted(candidates, key=lambda x: (0 if x in prefer_ports else 1, prefer_ports.index(x) if x in prefer_ports else x))
-                for p in candidates[:6]:
-                    url = check_http_and_cache(cid, serverurl.host or 'localhost', p)
-                    if url:
-                        break
-        except Exception:
-            log.exception('bg discover failed for %s', cid)
-
-    try:
-        _REACH_CHECKER.submit(_bg_discover_and_check, container_id)
-    except Exception:
-        pass
-
-    return jsonify({'reachable': None, 'cached': False, 'scheduled': True})
-
-
-@main_bp.route('/api/reachable/probe', methods=['POST'])
-def api_reachable_probe():
-    """Synchronously probe a host and a list of ports. This is intended for
-    client-initiated progressive checks and uses a short timeout by default."""
-    data = request.get_json(force=True, silent=True) or {}
-    host = data.get('host')
-    ports = data.get('ports') or []
-    try:
-        timeout = float(data.get('timeout', CHECK_TIMEOUT_DEFAULT))
-    except Exception:
-        timeout = CHECK_TIMEOUT_DEFAULT
-
-    if not host or not ports:
-        return jsonify({'reachable': None}), 400
-
-    prefer_ports = [80, 443, 8080, 8000, 3000]
-    candidates = sorted([int(p) for p in ports], key=lambda x: (0 if x in prefer_ports else 1, prefer_ports.index(x) if x in prefer_ports else x))
-    for p in candidates[:6]:
-        url = check_http(host, p, timeout=timeout)
-        if url:
-            return jsonify({'reachable': url})
-
-    return jsonify({'reachable': None}), 404
+        serverurl = active_server
+        containers = []
+        return render_template('index.html', containers=containers, serverurl=serverurl, select_form=select_form)
 
 
 @main_bp.route('/about', methods=['GET'])
@@ -315,8 +202,23 @@ def addcon():
             return redirect(url_for('main.addcon'))
         
         # Select active server
-        if 'submit_select' in request.form and select_form.validate():
-            server = DockerServer.set_active(select_form.server.data)
+        if 'submit_select' in request.form:
+            # Prefer form validation, but fall back to direct parsing if validation fails
+            if select_form.validate():
+                server_id = select_form.server.data
+            else:
+                raw = request.form.get('server')
+                try:
+                    server_id = int(raw) if raw is not None else None
+                except (TypeError, ValueError):
+                    server_id = None
+                log.warning("AddCon select did not validate; fallback parsing server=%r -> %r", raw, server_id)
+
+            if server_id is None:
+                flash('Invalid server selection.', 'danger')
+                return redirect(url_for('main.addcon'))
+
+            server = DockerServer.set_active(server_id)
             _docker_client_cache.clear()
             if server:
                 flash(f'Connected to "{server.display_name}".', 'success')
