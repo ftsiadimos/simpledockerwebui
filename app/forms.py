@@ -31,6 +31,22 @@ class AddServerForm(FlaskForm):
         ],
         render_kw={'placeholder': '2376'}
     )
+    user = StringField(
+        'SSH User',
+        validators=[
+            Optional(),
+            Length(max=100, message='User must be less than 100 characters')
+        ],
+        render_kw={'placeholder': 'root or your-username'}
+    )
+    password = StringField(
+        'SSH Password',
+        validators=[
+            Optional(),
+            Length(max=255, message='Password must be less than 255 characters')
+        ],
+        render_kw={'placeholder': 'SSH password (optional if using keys)', 'type': 'password'}
+    )
     submit = SubmitField('Add Server')
 
 

@@ -10,6 +10,8 @@ class DockerServer(db.Model):
     display_name = db.Column(db.String(100), nullable=False)  # Friendly name
     host = db.Column(db.String(255), nullable=True)  # Docker host FQDN/IP
     port = db.Column(db.String(10), nullable=True)   # Docker API port
+    user = db.Column(db.String(100), nullable=True)  # SSH user for remote commands
+    password = db.Column(db.String(255), nullable=True)  # SSH password for remote commands
     is_active = db.Column(db.Boolean, default=False)  # Currently selected server
 
     def __repr__(self):

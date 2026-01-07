@@ -1,8 +1,10 @@
 """Main routes and WebSocket handlers for LightDockerWebUI."""
 import os
+import subprocess
 from weakref import WeakKeyDictionary
 
 import docker
+import paramiko
 from bs4 import BeautifulSoup
 from flask import Blueprint, render_template, request, redirect, url_for, flash
 from flask_sock import Sock
@@ -165,6 +167,120 @@ def about():
     return render_template('about.html')
 
 
+@main_bp.route('/compose', methods=['GET', 'POST'])
+def compose():
+    """Manage Docker Compose projects."""
+    home = os.path.expanduser('~')
+    base_url, server_obj = get_docker_base_url()
+    env = os.environ.copy()
+    env['DOCKER_HOST'] = base_url
+    
+    if request.method == 'POST':
+        action = request.form.get('action')
+        compose_dir = request.form.get('compose_dir')
+        if not compose_dir:
+            flash('Invalid compose directory.', 'danger')
+            return redirect(url_for('main.compose'))
+        
+        # Determine if remote server
+        is_remote = (server_obj.host and 
+                    server_obj.host not in ['localhost', '127.0.0.1', ''] and 
+                    server_obj.user)
+        
+        if action == 'start':
+            if is_remote:
+                try:
+                    ssh_client = paramiko.SSHClient()
+                    ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+                    ssh_client.connect(server_obj.host, username=server_obj.user, password=server_obj.password)
+                    cmd = f'cd "{compose_dir}" && docker compose -f docker-compose.yml up -d'
+                    stdin, stdout, stderr = ssh_client.exec_command(cmd)
+                    exit_code = stdout.channel.recv_exit_status()
+                    result_stdout = stdout.read().decode()
+                    result_stderr = stderr.read().decode()
+                    ssh_client.close()
+                    result = type('Result', (), {'returncode': exit_code, 'stdout': result_stdout, 'stderr': result_stderr})()
+                except Exception as e:
+                    flash(f'SSH error: {str(e)}', 'danger')
+                    return redirect(url_for('main.compose'))
+            else:
+                command = f'docker compose -f "{os.path.join(compose_dir, "docker-compose.yml")}" up -d'
+                try:
+                    result = subprocess.run(command, shell=True, env=env, capture_output=True, text=True, timeout=60)
+                except subprocess.TimeoutExpired:
+                    flash('Timeout starting compose.', 'danger')
+                    return redirect(url_for('main.compose'))
+            
+            if result.returncode == 0:
+                flash(f'Compose in {compose_dir} started successfully.', 'success')
+            else:
+                flash(f'Error starting compose in {compose_dir}: {result.stderr}', 'danger')
+                
+        elif action == 'stop':
+            if is_remote:
+                try:
+                    ssh_client = paramiko.SSHClient()
+                    ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+                    ssh_client.connect(server_obj.host, username=server_obj.user, password=server_obj.password)
+                    cmd = f'cd "{compose_dir}" && docker compose -f docker-compose.yml stop'
+                    stdin, stdout, stderr = ssh_client.exec_command(cmd)
+                    exit_code = stdout.channel.recv_exit_status()
+                    result_stdout = stdout.read().decode()
+                    result_stderr = stderr.read().decode()
+                    ssh_client.close()
+                    result = type('Result', (), {'returncode': exit_code, 'stdout': result_stdout, 'stderr': result_stderr})()
+                except Exception as e:
+                    flash(f'SSH error: {str(e)}', 'danger')
+                    return redirect(url_for('main.compose'))
+            else:
+                command = f'docker compose -f "{os.path.join(compose_dir, "docker-compose.yml")}" stop'
+                try:
+                    result = subprocess.run(command, shell=True, env=env, capture_output=True, text=True, timeout=60)
+                except subprocess.TimeoutExpired:
+                    flash('Timeout stopping compose.', 'danger')
+                    return redirect(url_for('main.compose'))
+            
+            if result.returncode == 0:
+                flash(f'Compose in {compose_dir} stopped successfully.', 'success')
+            else:
+                flash(f'Error stopping compose in {compose_dir}: {result.stderr}', 'danger')
+        
+        return redirect(url_for('main.compose'))
+    
+    # GET: find all compose projects from containers on the server
+    try:
+        client, server = conf()
+        containers = client.containers.list(all=True)
+        compose_projects_dict = {}
+        for container in containers:
+            labels = container.labels or {}
+            if 'com.docker.compose.project' in labels:
+                project = labels['com.docker.compose.project']
+                working_dir = labels.get('com.docker.compose.project.working_dir', '')
+                service = labels.get('com.docker.compose.service', '')
+                if project not in compose_projects_dict:
+                    compose_projects_dict[project] = {
+                        'dir': working_dir,
+                        'path': os.path.join(working_dir, 'docker-compose.yml'),
+                        'services': set(),
+                        'running': False
+                    }
+                compose_projects_dict[project]['services'].add(service)
+                if container.status == 'running':
+                    compose_projects_dict[project]['running'] = True
+        compose_projects = list(compose_projects_dict.values())
+        for p in compose_projects:
+            p['services'] = list(p['services'])
+    except ValueError as e:
+        compose_projects = []
+        flash(f'Error connecting to Docker server: {e}', 'danger')
+    
+    running_count = sum(1 for p in compose_projects if p['running'])
+    stopped_count = len(compose_projects) - running_count
+    
+    return render_template('compose.html', compose_projects=compose_projects, running_count=running_count, stopped_count=stopped_count)
+
+
 @main_bp.route('/addcon', methods=['GET', 'POST'])
 def addcon():
     """Configure Docker server connections."""
@@ -193,6 +309,8 @@ def addcon():
                 display_name=add_form.display_name.data,
                 host=add_form.host.data or None,
                 port=add_form.port.data or None,
+                user=add_form.user.data or None,
+                password=add_form.password.data or None,
                 is_active=len(servers) == 0  # First server is active by default
             )
             db.session.add(new_server)

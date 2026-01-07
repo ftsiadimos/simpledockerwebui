@@ -111,6 +111,28 @@
                 <div class="form-text">Default: 2376 (TLS) or 2375 (no TLS)</div>
               </div>
               
+              <div class="mb-3">
+                {{ add_form.user.label(class="form-label") }}
+                {{ add_form.user(class="form-control") }}
+                {% if add_form.user.errors %}
+                  <div class="invalid-feedback d-block">
+                    {% for error in add_form.user.errors %}{{ error }}{% endfor %}
+                  </div>
+                {% endif %}
+                <div class="form-text">SSH user for remote compose commands</div>
+              </div>
+              
+              <div class="mb-3">
+                {{ add_form.password.label(class="form-label") }}
+                {{ add_form.password(class="form-control") }}
+                {% if add_form.password.errors %}
+                  <div class="invalid-feedback d-block">
+                    {% for error in add_form.password.errors %}{{ error }}{% endfor %}
+                  </div>
+                {% endif %}
+                <div class="form-text">SSH password (leave empty for key-based auth)</div>
+              </div>
+              
               <div class="d-grid gap-2">
                 {{ add_form.submit(class="btn btn-success") }}
               </div>
