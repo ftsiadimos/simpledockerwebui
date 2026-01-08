@@ -1,0 +1,126 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<style>
+  .stats-container {
+    background-color: #1e1e1e;
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .stats-header {
+    background-color: #2d2d2d;
+    padding: 0.75rem 1rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #3d3d3d;
+  }
+  .stats-content {
+    padding: 0.5rem;
+    max-height: 70vh;
+    overflow-y: auto;
+    overflow-x: auto;
+    color: #c7f9c7;
+    font-family: 'Fira Mono', 'Consolas', 'Monaco', 'Courier New', monospace;
+    font-size: 0.95rem;
+    line-height: 1.4;
+    background: #0f1720;
+  }
+  .stats-line {
+    padding: 0.25rem 0.5rem;
+    margin-bottom: 0.25rem;
+    border-radius: 4px;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+  .stats-line:nth-child(even) {
+    background-color: rgba(255, 255, 255, 0.02);
+  }
+  .stats-line:nth-child(odd) {
+    background-color: rgba(255, 255, 255, 0.01);
+  }
+  .stats-content::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  .stats-content::-webkit-scrollbar-track {
+    background: #2d2d2d;
+  }
+  .stats-content::-webkit-scrollbar-thumb {
+    background: #555;
+    border-radius: 4px;
+  }
+  .stats-content::-webkit-scrollbar-thumb:hover {
+    background: #666;
+  }
+  .btn-stats-control {
+    padding: 0.25rem 0.75rem;
+    font-size: 0.875rem;
+  }
+</style>
+
+<div class="stats-container shadow">
+  <div class="stats-header">
+    <div class="d-flex align-items-center gap-2">
+      <i class="fa fa-bar-chart text-light" aria-hidden="true"></i>
+      <span class="text-light fw-medium">Container Stats</span>
+    </div>
+    <div class="btn-group" role="group" aria-label="Stats controls">
+      <button type="button" id="scrollTopBtn" class="btn btn-outline-light btn-stats-control" title="Scroll to top">
+        <i class="fa fa-arrow-up" aria-hidden="true"></i> Top
+      </button>
+      <button type="button" id="scrollBottomBtn" class="btn btn-outline-light btn-stats-control" title="Scroll to bottom">
+        <i class="fa fa-arrow-down" aria-hidden="true"></i> Bottom
+      </button>
+      <button type="button" id="downloadBtn" class="btn btn-outline-success btn-stats-control" title="Download stats">
+        <i class="fa fa-download" aria-hidden="true"></i> Download
+      </button>
+      <button type="button" id="goBackBtn" class="btn btn-outline-warning btn-stats-control" title="Go back">
+        <i class="fa fa-arrow-left" aria-hidden="true"></i> Back
+      </button>
+    </div>
+  </div>
+  <div id="statsContent" class="stats-content">
+    {% for line in stats_text.split('\n') %}
+      <div class="stats-line">{{ line | e }}</div>
+    {% endfor %}
+  </div>
+</div>
+
+<script>
+  const statsEl = document.getElementById('statsContent');
+
+  // Scroll to bottom on page load
+  window.addEventListener('load', () => {
+    statsEl.scrollTop = statsEl.scrollHeight;
+  });
+
+  // Scroll controls
+  document.getElementById('scrollTopBtn').addEventListener('click', () => {
+    statsEl.scrollTo({ top: 0, behavior: 'smooth' });
+  });
+
+  document.getElementById('scrollBottomBtn').addEventListener('click', () => {
+    statsEl.scrollTo({ top: statsEl.scrollHeight, behavior: 'smooth' });
+  });
+
+  document.getElementById('goBackBtn').addEventListener('click', () => {
+    window.history.back();
+  });
+
+  // Download stats
+  document.getElementById('downloadBtn').addEventListener('click', () => {
+    const text = Array.from(document.querySelectorAll('.stats-line')).map(e => e.textContent).join('\n');
+    const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'container-stats.txt';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  });
+</script>
+{% endblock %}

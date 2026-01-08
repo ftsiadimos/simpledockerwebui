@@ -81,9 +81,6 @@
       <button type="button" id="scrollBottomBtn" class="btn btn-outline-light btn-log-control" title="Scroll to bottom">
         <i class="fa fa-arrow-down" aria-hidden="true"></i> Bottom
       </button>
-      <button type="button" id="toggleAutoScrollBtn" class="btn btn-outline-light btn-log-control" title="Toggle auto-scroll">
-        <i class="fa fa-arrows-v" aria-hidden="true"></i> Auto
-      </button>
       <button type="button" id="downloadBtn" class="btn btn-outline-success btn-log-control" title="Download logs">
         <i class="fa fa-download" aria-hidden="true"></i> Download
       </button>
@@ -120,15 +117,6 @@
     window.history.back();
   });
 
-  // Auto-scroll toggle
-  let autoScroll = true;
-  const toggleBtn = document.getElementById('toggleAutoScrollBtn');
-  toggleBtn.addEventListener('click', () => {
-    autoScroll = !autoScroll;
-    toggleBtn.classList.toggle('active', autoScroll);
-    if (autoScroll) logEl.scrollTop = logEl.scrollHeight;
-  });
-
   // Download logs
   document.getElementById('downloadBtn').addEventListener('click', () => {
     const text = Array.from(document.querySelectorAll('.ltext')).map(e => e.textContent).join('\n');
@@ -155,9 +143,5 @@
     });
   })();
 
-  // Ensure auto-scroll on load
-  window.addEventListener('load', () => {
-    if (autoScroll) logEl.scrollTop = logEl.scrollHeight;
-  });
 </script>
 {% endblock %}

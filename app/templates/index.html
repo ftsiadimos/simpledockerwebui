@@ -52,6 +52,7 @@
   .btn-stop { background: linear-gradient(45deg, #ffc107, #fd7e14); border-color: #ffc107; color: white; }
   .btn-restart { background: linear-gradient(45deg, #17a2b8, #6f42c1); border-color: #17a2b8; color: white; }
   .btn-delete { background: linear-gradient(45deg, #dc3545, #e83e8c); border-color: #dc3545; color: white; }
+  .btn-stats { background: linear-gradient(45deg, #6f42c1, #e91e63); border-color: #6f42c1; color: white; }
   /* Responsive adjustments */
   @media (max-width: 992px) {
     .wrap-cell .ellipsis { max-width: 120px; }
@@ -117,6 +118,9 @@
           <button type="submit" name="submit_button" value="Delete" class="btn btn-custom btn-delete btn-sm"
                   onclick="return confirm('Are you sure you want to delete the selected container(s)?');">
             <i class="fa fa-trash" aria-hidden="true"></i> Delete
+          </button>
+          <button type="submit" formaction="{{ url_for('main.stats') }}" class="btn btn-custom btn-stats btn-sm">
+            <i class="fa fa-bar-chart" aria-hidden="true"></i> Stats
           </button>
         </div>
       </div>

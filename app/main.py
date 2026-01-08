@@ -436,6 +436,32 @@ def comma():
         return redirect(url_for('main.index'))
 
 
+@main_bp.route("/stats", methods=["POST"])
+def stats():
+    """Display stats for selected containers."""
+    container_ids = request.form.getlist("interests")
+    if not container_ids:
+        flash('No containers selected.', 'warning')
+        return redirect(url_for('main.index'))
+
+    base_url, server_obj = get_docker_base_url()
+    env = os.environ.copy()
+    env['DOCKER_HOST'] = base_url
+
+    try:
+        command = ['docker', 'stats', '--no-stream'] + container_ids
+        result = subprocess.run(command, env=env, capture_output=True, text=True, timeout=30)
+        if result.returncode == 0:
+            stats_text = result.stdout
+        else:
+            stats_text = f"Error: {result.stderr}"
+    except subprocess.TimeoutExpired:
+        stats_text = "Timeout while fetching stats."
+    except Exception as e:
+        stats_text = f"Error: {str(e)}"
+
+    return render_template('stats.html', stats_text=stats_text)
+
 
 def _handle_builtin_command(sock, data):
     """Handle built-in shell commands (cd, pwd, clear, ls, cat, echo, help, exit).
