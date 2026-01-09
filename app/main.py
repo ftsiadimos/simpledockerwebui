@@ -463,7 +463,33 @@ def stats():
     return render_template('stats.html', stats_text=stats_text)
 
 
-def _handle_builtin_command(sock, data):
+@main_bp.route("/inspect", methods=["POST"])
+def inspect():
+    """Display inspect data for a specific container."""
+    container_id = request.form.get("inspect")
+    if not container_id:
+        flash('No container specified.', 'warning')
+        return redirect(url_for('main.index'))
+
+    try:
+        t0 = time.time()
+        client, _ = conf()
+        t1 = time.time()
+        container = client.containers.get(container_id)
+        t2 = time.time()
+        inspect_data = container.attrs
+        t3 = time.time()
+
+        log.info("inspect: container=%s timings: conf=%.3fs get=%.3fs inspect=%.3fs",
+                 container_id, t1-t0, t2-t1, t3-t2)
+
+        return render_template('inspect.html', inspect_data=inspect_data, container_id=container_id)
+    except docker.errors.NotFound:
+        flash(f'Container {container_id} not found.', 'danger')
+        return redirect(url_for('main.index'))
+    except docker.errors.APIError as e:
+        flash(f'Error inspecting container: {e}', 'danger')
+        return redirect(url_for('main.index'))
     """Handle built-in shell commands (cd, pwd, clear, ls, cat, echo, help, exit).
 
     Returns:

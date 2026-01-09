@@ -53,6 +53,7 @@
   .btn-restart { background: linear-gradient(45deg, #17a2b8, #6f42c1); border-color: #17a2b8; color: white; }
   .btn-delete { background: linear-gradient(45deg, #dc3545, #e83e8c); border-color: #dc3545; color: white; }
   .btn-stats { background: linear-gradient(45deg, #6f42c1, #e91e63); border-color: #6f42c1; color: white; }
+  .btn-inspect { background: linear-gradient(45deg, #17a2b8, #28a745); border-color: #17a2b8; color: white; }
   /* Responsive adjustments */
   @media (max-width: 992px) {
     .wrap-cell .ellipsis { max-width: 120px; }
@@ -138,6 +139,7 @@
               <th scope="col" class="d-none d-lg-table-cell">Ports</th>
               <th scope="col" style="width: 80px;">Logs</th>
               <th scope="col" style="width: 80px;">Terminal</th>
+              <th scope="col" style="width: 80px;">Inspect</th>
             </tr>
           </thead>
           <tbody>
@@ -199,10 +201,18 @@
                   <i class="fa fa-terminal" aria-hidden="true"></i> Terminal
                 </button>
               </td>
+              <td class="btn-cell">
+                <button type="submit" formaction="{{ url_for('main.inspect') }}" 
+                        name="inspect" value="{{ container.id }}" 
+                        class="btn btn-outline-info btn-sm"
+                        title="Inspect container">
+                  <i class="fa fa-info-circle" aria-hidden="true"></i> Inspect
+                </button>
+              </td>
             </tr>
             {% else %}
             <tr>
-              <td colspan="7" class="text-center py-4 text-muted">
+              <td colspan="8" class="text-center py-4 text-muted">
                 <i class="fa fa-inbox fa-2x mb-2" aria-hidden="true"></i>
                 <p class="mb-0">No containers found</p>
               </td>
@@ -223,7 +233,7 @@
       order: [[1, 'asc']],
       dom: 'lrtip', // include length (rows-per-page) control, remove built-in search box
       columnDefs: [
-        { targets: [0, 5, 6], orderable: false, searchable: false }
+        { targets: [0, 5, 6, 7], orderable: false, searchable: false }
       ],
       language: {
         emptyTable: 'No containers available'
