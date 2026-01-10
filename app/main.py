@@ -490,6 +490,7 @@ def inspect():
     except docker.errors.APIError as e:
         flash(f'Error inspecting container: {e}', 'danger')
         return redirect(url_for('main.index'))
+def _handle_builtin_command(sock, data):
     """Handle built-in shell commands (cd, pwd, clear, ls, cat, echo, help, exit).
 
     Returns:
