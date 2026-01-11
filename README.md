@@ -114,7 +114,10 @@ LightDockerWebUI is a **clean, fast, and simple** web-based Docker management to
 Get up and running in **30 seconds**:
 
 ```bash
-docker run -d --restart unless-stopped -p 8008:8008 --name=DockerManager  -v $(pwd)/instance:/app/instance  ftsiadimos/lightdockerwebui:latest
+docker run -d --restart unless-stopped \
+ -p 8008:8008 --name=DockerManager \
+ -v $(pwd)/instance:/app/instance \
+ ftsiadimos/lightdockerwebui:latest
 ```
 
 Then open **http://localhost:8008** in your browser. That's it! 🎉
@@ -130,7 +133,11 @@ Then open **http://localhost:8008** in your browser. That's it! 🎉
 # Pull and run
 docker pull ftsiadimos/lightdockerwebui:latest
 
-docker run -d --restart unless-stopped -p 8008:8008 --name=DockerManager  -v $(pwd)/instance:/app/instance  ftsiadimos/lightdockerwebui:latest
+docker run -d --restart unless-stopped \
+-p 8008:8008 \
+--name=DockerManager \
+-v $(pwd)/instance:/app/instance \
+ftsiadimos/lightdockerwebui:latest
 ```
 
 </details>
