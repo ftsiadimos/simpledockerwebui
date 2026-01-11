@@ -87,11 +87,8 @@ def index():
     active_server = DockerServer.get_active()
     
     def get_server_label(s):
-        if s.host and s.port:
-            return f"{s.display_name} (tcp://{s.host}:{s.port})"
-        elif s.host:
-            return f"{s.display_name} ({s.host})"
-        return f"{s.display_name} (local)"
+        # Only show the friendly display name in the dropdown
+        return s.display_name
     
     select_form.server.choices = [(s.id, get_server_label(s)) for s in servers]
     
@@ -291,13 +288,9 @@ def addcon():
     servers = DockerServer.query.all()
     active_server = DockerServer.get_active()
     
-    # Populate server dropdown with display name and URL
+    # Populate server dropdown with only the display name
     def get_server_label(s):
-        if s.host and s.port:
-            return f"{s.display_name} (tcp://{s.host}:{s.port})"
-        elif s.host:
-            return f"{s.display_name} ({s.host})"
-        return f"{s.display_name} (local)"
+        return s.display_name
     
     select_form.server.choices = [(s.id, get_server_label(s)) for s in servers]
     

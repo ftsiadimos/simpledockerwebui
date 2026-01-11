@@ -79,6 +79,22 @@
     .dataTables_length { display: none; } /* hide on tiny screens to save space */
     .card-header label { display: none; }
   }
+
+  /* Server select sizing to show full names in header */
+  .card-header .form-select {
+    min-width: 140px;
+    max-width: 520px;
+    white-space: nowrap;
+    box-sizing: border-box; /* ensure padding included in width calc */
+    padding-right: 40px; /* leave space for the native dropdown arrow */
+    background-position: right 10px center; /* keep arrow visually outside text */
+    background-repeat: no-repeat;
+  }
+
+  /* On very small screens we let the select take 100% width */
+  @media (max-width: 479px) {
+    .card-header .form-select { width: 100%; padding-right: 36px; }
+  }
   </style>
 
 <div class="card shadow-sm">
