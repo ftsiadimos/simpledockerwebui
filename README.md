@@ -114,12 +114,7 @@ LightDockerWebUI is a **clean, fast, and simple** web-based Docker management to
 Get up and running in **30 seconds**:
 
 ```bash
-docker run -d \
-  --name lightdockerwebui \
-  -p 8008:8008 \
-  -v /var/run/docker.sock:/var/run/docker.sock \
-  --restart unless-stopped \
-  ftsiadimos/lightdockerwebui:latest
+docker run -d --restart unless-stopped -p 8008:8008 --name=DockerManager  -v $(pwd)/instance:/app/instance  ftsiadimos/lightdockerwebui:latest
 ```
 
 Then open **http://localhost:8008** in your browser. That's it! 🎉
@@ -135,12 +130,7 @@ Then open **http://localhost:8008** in your browser. That's it! 🎉
 # Pull and run
 docker pull ftsiadimos/lightdockerwebui:latest
 
-docker run -d \
-  --name lightdockerwebui \
-  -p 8008:8008 \
-  -v /var/run/docker.sock:/var/run/docker.sock \
-  --restart unless-stopped \
-  ftsiadimos/lightdockerwebui:latest
+docker run -d --restart unless-stopped -p 8008:8008 --name=DockerManager  -v $(pwd)/instance:/app/instance  ftsiadimos/lightdockerwebui:latest
 ```
 
 </details>
@@ -153,14 +143,13 @@ docker run -d \
 version: '3.8'
 
 services:
-  lightdockerwebui:
+  DockerManager:
     image: ftsiadimos/lightdockerwebui:latest
-    container_name: lightdockerwebui
+    container_name: DockerManager
     ports:
       - "8008:8008"
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-      - ./data:/app/data  # Persist server configuration
+      - ./instance:/app/instance
     restart: unless-stopped
 ```
 
